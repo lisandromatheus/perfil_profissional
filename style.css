@@ -315,14 +315,15 @@
         border-top: none;
         padding-top: 16px;
     }
-}/* NOTA: Este CSS assume que as variáveis de cor 
+}
+
+/* NOTA: Este CSS assume que as variáveis de cor 
   (--color-primary, --color-primary-dark, etc.) 
   já foram definidas no :root do seu arquivo principal.
 */
 
 /* --- Estrutura da Seção Sobre --- */
 .about-section {
-    /* O fundo usa o mesmo gradiente da seção hero para consistência */
     background: var(--color-bg-gradient);
     padding: 100px 20px;
     overflow: hidden; /* Garante que as peças decorativas não quebrem o layout */
@@ -347,21 +348,24 @@
     min-height: 350px; /* Altura mínima para acomodar as peças */
 }
 
+/* ATUALIZAÇÃO: Wrapper da foto modificado */
 .photo-placeholder-wrapper {
     width: 300px;
     height: 300px;
-    border-radius: 40px; /* Raio de borda grande como na imagem */
+    border-radius: 40px; /* Raio de borda grande */
     background: var(--color-white);
     box-shadow: 0 15px 35px rgba(68, 88, 119, 0.1);
     border: 1px solid rgba(255, 255, 255, 0.8);
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    text-align: center;
-    position: relative; /* Fica acima das peças de fundo */
+    position: relative; 
     z-index: 2;
     transition: all 0.3s ease;
-    cursor: pointer;
+    
+    /* IMPORTANTE: Adicionado para cortar a imagem na borda arredondada */
+    overflow: hidden; 
+
+    /* As propriedades de 'display: flex', 'justify-content', etc.,
+       foram removidas pois não são mais necessárias.
+    */
 }
 
 .photo-placeholder-wrapper:hover {
@@ -369,6 +373,19 @@
     box-shadow: 0 20px 40px rgba(68, 88, 119, 0.15);
 }
 
+/* ATUALIZAÇÃO: Nova regra para a foto */
+.profile-photo {
+    width: 100%;             /* Preenche o wrapper */
+    height: 100%;            /* Preenche o wrapper */
+    object-fit: cover;     /* Corta a imagem sem distorcer */
+    border-radius: 40px;     /* Garante que a imagem se ajuste ao raio */
+}
+
+
+/* ATUALIZAÇÃO: As regras abaixo não são mais necessárias 
+   (você pode apagá-las do seu CSS) 
+*/
+/*
 .placeholder-content {
     display: flex;
     flex-direction: column;
@@ -400,13 +417,14 @@
     font-size: 14px;
     font-weight: 500;
 }
+*/
 
-/* Peças decorativas de fundo */
+
+/* Peças decorativas de fundo (sem alteração) */
 .photo-piece {
     position: absolute;
     width: 100px;
     height: 100px;
-    /* Mesmo estilo "vidro fosco" da seção hero */
     background: linear-gradient(145deg, rgba(219, 234, 254, 0.7), rgba(191, 219, 254, 0.8));
     backdrop-filter: blur(5px);
     border-radius: 20px;
@@ -457,7 +475,6 @@
 }
 
 .info-card {
-    /* Fundo azul bem claro */
     background: #F0F5FE; 
     border-radius: 16px;
     padding: 24px;
@@ -542,17 +559,19 @@
         font-size: 16px; /* Texto menor no celular */
     }
 
+    /* O wrapper da foto (e a imagem dentro dele) 
+       será menor no mobile */
     .photo-placeholder-wrapper {
         width: 250px;
         height: 250px;
         border-radius: 30px;
     }
-
-    .placeholder-initials {
-        width: 80px;
-        height: 80px;
-        font-size: 32px;
+    
+    /* A foto se ajustará automaticamente */
+    .profile-photo {
+        border-radius: 30px;
     }
+
 
     .photo-piece {
         width: 80px;
