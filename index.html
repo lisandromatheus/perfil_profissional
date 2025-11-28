@@ -2,583 +2,621 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lisandro Ribeiro - Desenvolvedor Full Stack</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Lisandro Ribeiro | Infinite World</title>
     
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="style.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" integrity="sha512-DTOQO9RWCH3ppGqcWaEA1BIZOC6xxalwEsw9c2QQeAIftl+Vegovlnee1c9QX4TctnWMn13TZye+giMm8e2LwA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/@phosphor-icons/web"></script>
 
+    <style>
+        /* --- CONFIGURAÇÕES GERAIS --- */
+        :root {
+            --accent: #00ff9d;
+            --accent-secondary: #bd00ff;
+            --glass-bg: rgba(5, 12, 8, 0.85);
+            --glass-border: rgba(0, 255, 157, 0.2);
+        }
+
+        body { 
+            margin: 0; background-color: #010502; 
+            font-family: 'Outfit', sans-serif; 
+            overflow-x: hidden; color: #fff;
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior: none; user-select: none;
+        }
+
+        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: -1; }
+
+        /* --- LOADING SCREEN --- */
+        #loading {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            background: #010502; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; z-index: 9999;
+            transition: opacity 1s ease-out;
+        }
+        .spinner {
+            width: 60px; height: 60px; border: 4px solid rgba(255,255,255,0.1);
+            border-top-color: var(--accent); border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin-bottom: 20px;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .loading-text { letter-spacing: 4px; font-weight: 900; font-size: 0.9rem; color: #fff; text-transform: uppercase; }
+
+        /* --- JOYSTICK (Mobile) --- */
+        #joystick-zone {
+            position: fixed; bottom: 40px; left: 30px; width: 140px; height: 140px;
+            z-index: 5000; display: none; /* Ativado via JS no mobile */
+            touch-action: none; /* Impede scroll do browser ao tocar no joystick */
+        }
+        .joystick-base {
+            width: 100%; height: 100%; background: rgba(255, 255, 255, 0.05);
+            border: 2px solid rgba(0, 255, 157, 0.4); border-radius: 50%;
+            position: relative; backdrop-filter: blur(5px);
+            box-shadow: 0 0 25px rgba(0,0,0,0.5);
+        }
+        .joystick-stick {
+            width: 60px; height: 60px; background: var(--accent);
+            border-radius: 50%; position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            box-shadow: 0 0 20px var(--accent); pointer-events: none;
+            transition: transform 0.05s linear; /* Movimento mais responsivo */
+        }
+
+        /* --- BOTÃO EXPLORAR --- */
+        #explore-btn-container {
+            position: absolute; top: 1450vh; width: 100%; text-align: center; z-index: 50;
+            padding-bottom: 150px; transition: opacity 0.5s; pointer-events: none; opacity: 0;
+        }
+        #explore-btn-container.visible { opacity: 1; pointer-events: auto; }
+        
+        .btn-explore {
+            background: var(--accent); color: #020a05; padding: 18px 50px;
+            font-size: 1.1rem; font-weight: 900; border-radius: 50px; border: none;
+            box-shadow: 0 0 40px rgba(0, 255, 157, 0.6); cursor: pointer;
+            animation: pulse 2s infinite; text-transform: uppercase; letter-spacing: 2px;
+            display: inline-flex; align-items: center; gap: 10px;
+        }
+        @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.03);} 100% {transform: scale(1);} }
+
+        /* --- HUD MODO EXPLORAÇÃO --- */
+        #exploration-ui {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
+            z-index: 2000; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+        }
+        #exploration-ui.active { opacity: 1; pointer-events: auto; }
+
+        .top-bar { padding: 25px; display: flex; justify-content: space-between; align-items: flex-start; }
+        
+        .btn-exit {
+            background: rgba(255, 50, 50, 0.15); border: 1px solid #ff4444; color: #ff4444;
+            padding: 10px 24px; border-radius: 30px; font-weight: 700; cursor: pointer;
+            backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px;
+            transition: 0.3s;
+        }
+        .btn-exit:hover { background: rgba(255, 50, 50, 0.3); color: #fff; }
+
+        .weather-panel {
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(15px);
+            padding: 8px; border-radius: 12px; display: flex; gap: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .weather-btn {
+            background: transparent; border: none; color: #888; font-size: 22px;
+            cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .weather-btn:hover, .weather-btn.active { background: rgba(255,255,255,0.15); color: var(--accent); }
+
+        /* --- CONTEÚDO (CARDS) --- */
+        #track { height: 1500vh; pointer-events: none; }
+        
+        .section {
+            position: fixed; top: 50%; left: 50%; 
+            transform: translate(-50%, -50%) scale(0.9) translateY(40px);
+            width: 88%; max-width: 650px; opacity: 0; visibility: hidden; pointer-events: none;
+            transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); z-index: 10;
+        }
+        .section.active { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1) translateY(0); pointer-events: auto; }
+
+        .glass-card {
+            background: var(--glass-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
+            border: 1px solid var(--glass-border); border-radius: 24px; padding: 2.5rem;
+            box-shadow: 0 30px 60px rgba(0,0,0,0.7); position: relative; overflow: hidden;
+        }
+        .glass-card::before {
+            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
+            background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
+        }
+
+        /* TIPOGRAFIA & CORREÇÃO CSS */
+        h1 { 
+            font-size: 2.4rem; margin: 0 0 10px 0; 
+            background: linear-gradient(90deg, #fff, var(--accent)); 
+            -webkit-background-clip: text; /* Vendor prefix */
+            background-clip: text; /* Standard */
+            -webkit-text-fill-color: transparent; 
+            color: transparent; /* Fallback/Requirement */
+        }
+        h2 { color: var(--accent); margin-bottom: 20px; font-size: 1.6rem; display: flex; align-items: center; gap: 10px; text-transform: uppercase;}
+        p { color: #a0a0a0; line-height: 1.6; font-size: 1rem; margin-bottom: 20px; }
+        
+        .tag { background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 50px; font-size: 0.85rem; color: #ccc; border: 1px solid rgba(255,255,255,0.1); margin-right: 5px; display: inline-block; margin-bottom: 8px; transition: 0.3s;}
+        .tag:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,255,157,0.1); }
+
+        .project-card {
+            background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px;
+            margin-bottom: 15px; border-left: 3px solid var(--accent); transition: 0.3s;
+            border: 1px solid rgba(255,255,255,0.05);
+        }
+        .project-card:hover { transform: translateX(8px); border-color: var(--glass-border); background: rgba(0,255,157,0.05); }
+        .project-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.9rem; }
+        
+        .btn-social { 
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            width: 100%; padding: 16px; margin-top: 15px; text-align: center; border-radius: 12px; 
+            text-decoration: none; font-weight: 800; transition: 0.3s;
+        }
+        .btn-whatsapp { background: var(--accent); color: #000; box-shadow: 0 5px 20px rgba(0,255,157,0.2); }
+        .btn-insta { background: transparent; border: 2px solid var(--accent-secondary); color: var(--accent-secondary); }
+
+        @media (max-width: 1024px) { #joystick-zone { display: block; } .glass-card { padding: 1.8rem; } h1 {font-size: 2rem;}}
+    </style>
 </head>
 <body>
 
-<section class="hero-section">
-    <div class="hero-container">
-
-        <div class="hero-content">
-            <span class="hero-badge">
-                <i class="fa-solid fa-laptop-code"></i>
-                Desenvolvedor Full Stack
-            </span>
-
-            <h1>Lisandro Ribeiro</h1>
-
-            <p class="subtitle">
-                Transformando ideias em soluções tecnológicas inovadoras
-                com foco em impacto social e excelência técnica.
-            </p>
-
-            <div class="hero-tags">
-                <span>JavaScript</span>
-                <span>React</span>
-                <span>PHP</span>
-                <span>UI/UX</span>
-            </div>
-
-            <div class="hero-buttons">
-                <a href="#contato" class="btn btn-primary">
-                    Entre em Contato
-                    <i class="fa-solid fa-arrow-right"></i>
-                </a>
-                <a href="#projetos" class="btn btn-secondary">
-                    Ver Projetos
-                </a>
-            </div>
-
-            <div class="hero-stats">
-                <div class="stat-item">
-                    <i class="fa-solid fa-briefcase"></i>
-                    3+ Projetos Principais
-                </div>
-                <div class="stat-item">
-                    <i class="fa-solid fa-layer-group"></i>
-                    10+ Tecnologias
-                </div>
-                <div class="stat-item">
-                    <i class="fa-solid fa-map-marker-alt"></i>
-                    Belém, PA
-                </div>
-            </div>
-        </div>
-
-        <div class="hero-graphic">
-            <div class="graphic-grid">
-                <div class="grid-piece"></div>
-                <div class="grid-piece"></div>
-                <div class="grid-piece"></div>
-                <div class="grid-piece"></div>
-            </div>
-
-            <div class="center-icon-wrapper">
-                <i class="fa-solid fa-code"></i>
-            </div>
-        </div>
-
+    <div id="loading">
+        <div class="spinner"></div>
+        <div class="loading-text">GERANDO MUNDO</div>
     </div>
-</section>
 
-<section id="sobre" class="about-section">
-    <div class="about-container">
+    <div id="canvas-container"></div>
+    <div id="track"></div>
 
-        <div class="about-photo-area">
-            <div class="photo-piece piece-1"></div>
-            <div class="photo-piece piece-2"></div>
-            
-            <div class="photo-placeholder-wrapper" id="photoFrame">
-                
-                <img src="img/foto1.png" alt="Foto de Lisandro Ribeiro" class="profile-photo">
-
+    <div id="exploration-ui">
+        <div class="top-bar">
+            <button class="btn-exit" onclick="toggleExploration(false)">
+                <i class="ph ph-arrow-u-up-left"></i> VOLTAR AO SITE
+            </button>
+            <div class="weather-panel">
+                <button class="weather-btn active" onclick="setWeather('day')"><i class="ph ph-sun"></i></button>
+                <button class="weather-btn" onclick="setWeather('cloudy')"><i class="ph ph-cloud"></i></button>
+                <button class="weather-btn" onclick="setWeather('rain')"><i class="ph ph-cloud-rain"></i></button>
+                <button class="weather-btn" onclick="setWeather('night')"><i class="ph ph-moon-stars"></i></button>
             </div>
         </div>
+    </div>
 
-        <div class="about-content">
-            <h2>Sobre Mim</h2>
+    <div id="joystick-zone">
+        <div class="joystick-base" id="joy-base">
+            <div class="joystick-stick" id="joy-stick"></div>
+        </div>
+    </div>
 
-            <p>
-                Transformo ideias em aplicativos, sites e sistemas que funcionam de
-                verdade. Crio soluções sob medida para cada projeto, desde sites
-                institucionais até sistemas completos para empresas.
-            </p>
-            <p>
-                Trabalho com mapas interativos, análise de dados, dashboards
-                gerenciais e automações inteligentes que economizam tempo e
-                resolvem problemas do dia a dia.
-            </p>
+    <div id="explore-btn-container">
+        <button class="btn-explore" onclick="toggleExploration(true)">
+            <i class="ph ph-game-controller"></i> Explorar Mapa Livre
+        </button>
+    </div>
 
-            <div class="about-info-cards">
-                <div class="info-card">
-                    <i class="fa-solid fa-map-marker-alt"></i>
-                    <div>
-                        <strong>Localização</strong>
-                        <span>Belém, Pará</span>
-                    </div>
-                </div>
+    <div class="section" id="sec-hero">
+        <div class="glass-card" style="text-align: center;">
+            <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; margin-bottom: 10px;">PORTFÓLIO IMERSIVO</div>
+            <h1>LISANDRO RIBEIRO</h1>
+            <p>Desenvolvedor Full Stack</p>
+            <p style="font-size: 0.9rem; opacity: 0.7;">Role para baixo ou use o Joystick para iniciar a jornada</p>
+        </div>
+    </div>
 
-                <div class="info-card">
-                    <i class="fa-solid fa-award"></i>
-                    <div>
-                        <strong>Eventos</strong>
-                        <span>Hackathons & Conferências</span>
-                    </div>
-                </div>
-
-                <div class="info-card card-full-width">
-                    <i class="fa-solid fa-layer-group"></i>
-                    <div>
-                        <strong>O Que Faço</strong>
-                        <span>Sites, Sistemas Web, Aplicativos, Dashboards, Mapas Interativos, Automações e IA</span>
-                    </div>
+    <div class="section" id="sec-about">
+        <div class="glass-card">
+            <h2><i class="ph ph-fingerprint"></i> Sobre Mim</h2>
+            <p>Especialista em criar soluções que conectam complexidade técnica com experiência do usuário intuitiva.</p>
+            <div style="margin-top: 20px;">
+                <h3 style="font-size: 0.9rem; color: #fff; text-transform: uppercase; margin-bottom: 10px;">Tech Stack</h3>
+                <div class="skill-grid">
+                    <span class="tag">JavaScript</span><span class="tag">React</span><span class="tag">PHP / Laravel</span>
+                    <span class="tag">Node.js</span><span class="tag">Three.js</span><span class="tag">SQL</span>
+                    <span class="tag">IA & Automação</span><span class="tag">UI/UX Figma</span>
                 </div>
             </div>
         </div>
     </div>
-</section>
-<section id="competencias" class="competencias-section">
-    <div class="competencias-container">
-        
-        <h2 class="section-title">Competências</h2>
-        <p class="section-subtitle">
-            Conjunto abrangente de habilidades técnicas e criativas para
-            desenvolver soluções completas
-        </p>
 
-        <div class="competencias-grid">
-
-            <div class="skill-card">
-                <div class="skill-icon-wrapper lang">
-                    <i class="fa-solid fa-code"></i>
-                </div>
-                <h3>Linguagens</h3>
-                <div class="skill-tags">
-                    <span>JavaScript</span>
-                    <span>PHP</span>
-                    <span>TypeScript</span>
-                    <span>SQL</span>
-                    <span>HTML5</span>
-                    <span>CSS3</span>
-                </div>
-            </div>
-
-            <div class="skill-card">
-                <div class="skill-icon-wrapper frameworks">
-                    <i class="fa-solid fa-cogs"></i> </div>
-                <h3>Frameworks</h3>
-                <div class="skill-tags">
-                    <span>React</span>
-                    <span>Node.js</span>
-                    <span>Express</span>
-                    <span>Laravel</span>
-                    <span>Tailwind CSS</span>
-                    <span>Bootstrap</span>
-                </div>
-            </div>
-
-            <div class="skill-card">
-                <div class="skill-icon-wrapper uiux">
-                    <i class="fa-solid fa-palette"></i> </div>
-                <h3>UI/UX Design</h3>
-                <div class="skill-tags">
-                    <span>Figma</span>
-                    <span>Design Systems</span>
-                    <span>Responsive Design</span>
-                    <span>User Research</span>
-                    <span>Prototyping</span>
-                    <span>Accessibility</span>
-                </div>
-            </div>
-
-            <div class="skill-card">
-                <div class="skill-icon-wrapper database">
-                    <i class="fa-solid fa-database"></i>
-                </div>
-                <h3>Banco de Dados</h3>
-                <div class="skill-tags">
-                    <span>PostgreSQL</span>
-                    <span>MySQL</span>
-                    <span>Database Design</span>
-                    <span>Query Optimization</span>
-                </div>
-            </div>
-
-            <div class="skill-card">
-                <div class="skill-icon-wrapper bi">
-                    <i class="fa-solid fa-chart-bar"></i>
-                </div>
-                <h3>Análise & BI</h3>
-                <div class="skill-tags">
-                    <span>Data Visualization</span>
-                    <span>Statistical Analysis</span>
-                    <span>Dashboard Design</span>
-                    <span>Reporting</span>
-                    <span>KPI Tracking</span>
-                </div>
-            </div>
-
-            <div class="skill-card">
-                <div class="skill-icon-wrapper ia">
-                    <i class="fa-solid fa-robot"></i> </div>
-                <h3>IA & Automação</h3>
-                <div class="skill-tags">
-                    <span>AI Agents</span>
-                    <span>Process Automation</span>
-                 <span>API Integration</span>
-                    <span>Workflow Design</span>
-                    <span>Gemini API</span>
-                </div>
-            </div>
-
-        </div> </div>
-    </section>
-
-<section id="projetos" class="projetos-section">
-    <div class="projetos-container">
-
-        <h2 class="section-title">Projetos Principais</h2>
-        <p class="section-subtitle">
-            Soluções tecnológicas com impacto real em diferentes setores
-        </p>
-
-        <div class="projetos-list">
-
-            <article class="project-card">
-                <div class="project-info">
-                    <div class="project-icon-wrapper sentinela">
-                        <i class="fa-solid fa-earth-americas"></i>
-                    </div>
-                    <h3>Instituto Sentinela da Amazônia</h3>
-                    <p>
-                        Atualmente faço parte do projeto atuando no desenvolvimento e design.
-                    </p>
-                    <a href="https://sentineladaamazonia.org" target="_blank" rel="noopener noreferrer" class="project-link">
-                        Visitar site
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    </a>
-                </div>
-
-                <div class="project-details">
-                    <div class="project-tags">
-                        <span>Identidade Visual</span>
-                        <span>Georreferenciamento</span>
-                    </div>
-                    <ul class="project-features">
-                        <li>Site</li>
-                        <li>Aplicações</li>
-                        <li>Banco de dados</li>
-                    </ul>
-                    <hr class="project-divider">
-                    <div class="project-key-features">
-                        <div class="key-feature-item">
-                            <i class="fa-solid fa-location-crosshairs"></i>
-                            <span></span>
-                        </div>
-                        <div class="key-feature-item">
-                            <i class="fa-solid fa-chart-simple"></i>
-                            <span></span>
-                        </div>
-                    </div>
-                </div>
-            </article>
-
-            <article class="project-card">
-                <div class="project-info">
-                    <div class="project-icon-wrapper spp">
-                        <i class="fa-solid fa-file-invoice-dollar"></i>
-                    </div>
-                    <h3>Sistema de Programação de Pagamentos (SPP)</h3>
-                    <p>
-                        Sistema de controle financeiro e gestão de
-                        contratos (SESMA), incluindo todo o
-                        desenvolvimento e o design da interface.
-                    </p>
-                    </div>
-
-                <div class="project-details">
-                    <div class="project-tags">
-                        <span>UI/UX Design</span>
-                        <span>Financeiro</span>
-                        <span>Gestão Pública</span>
-                    </div>
-                    <ul class="project-features">
-                        <li>Controle financeiro integrado</li>
-                        <li>Relatórios gerenciais e dashboards</li>
-                        <li>Gestão de contratos e fornecedores</li>
-                        <li>Sistema de aprovações e workflows</li>
-                    </ul>
-                    <hr class="project-divider">
-                    <div class="project-key-features">
-                        <div class="key-feature-item">
-                            <i class="fa-solid fa-dollar-sign"></i>
-                            <span>Controle Financeiro</span>
-                        </div>
-                        <div class="key-feature-item">
-                            <i class="fa-solid fa-users"></i>
-                            <span>Multi-usuário</span>
-                        </div>
-                    </div>
-                </div>
-            </article>
+    <div class="section" id="sec-projects">
+        <div class="glass-card">
+            <h2><i class="ph ph-code"></i> Projetos</h2>
             
-            <article class="project-card">
-                <div class="project-info">
-                    <div class="project-icon-wrapper lumi">
-                        <i class="fa-solid fa-graduation-cap"></i>
-                    </div>
-                    <h3>Lumi Educa</h3>
-                    <p>
-                        Plataforma educacional completa para
-                        gerenciamento de desempenho pedagógico.
-                        (Em desenvolvimento)
-                    </p>
-                    <a href="https://lumieduca.com.br" target="_blank" rel="noopener noreferrer" class="project-link">
-                        Visitar site
-                        <i class="fa-solid fa-arrow-up-right-from-square"></i>
-                    </a>
-                </div>
-
-                <div class="project-details">
-                    <div class="project-tags">
-                        <span>Plataforma Web</span>
-                        <span>Educação</span>
-                        <span>Em Desenvolvimento</span>
-                    </div>
-                    <ul class="project-features">
-                        <li>Portal do Aluno e Responsável</li>
-                        <li>Área do Professor e Gestor</li>
-                        <li>Gestão Pedagógica completa</li>
-                        <li>Relatórios de Desempenho</li>
-                    </ul>
-                    <hr class="project-divider">
-                    <div class="project-key-features">
-                        <div class="key-feature-item">
-                            <i class="fa-solid fa-school"></i>
-                            <span>Gestão Acadêmica</span>
-                        </div>
-                        <div class="key-feature-item">
-                            <i class="fa-solid fa-cloud"></i>
-                            <span>Plataforma SaaS</span>
-                        </div>
-                    </div>
-                </div>
-            </article>
-
-        </div> <p class="more-projects-note">
-            Estes são alguns dos meus trabalhos em destaque.
-            Existem mais projetos no meu portfólio.
-        </p>
-
-    </div> </section>
-
-
-
-    <section id="servicos" class="creation-section">
-    <div class="creation-container">
-        
-        <h2 class="section-title">O Que Posso Criar Para Você</h2>
-        <p class="section-subtitle">
-            Com base nas minhas habilidades, posso desenvolver:
-        </p>
-
-        <div class="creation-grid">
-
-            <div class="creation-card">
-                <div class="creation-icon-wrapper">
-                    <i class="fa-solid fa-chart-line"></i>
-                </div>
-                <h3>Sistema de BI para Análise de Métricas</h3>
-                <p>
-                    Desenvolvimento de dashboards interativos e
-                    relatórios customizados para análise de dados
-                    empresariais.
-                </p>
+            <div class="project-card">
+                <h3 style="margin: 0; color: #fff;">Lumi Educa</h3>
+                <p style="margin: 5px 0 10px 0; font-size: 0.9rem;">SaaS educacional completo para gestão pedagógica.</p>
+                <a href="https://lumieduca.com.br" target="_blank" class="project-link"><i class="ph ph-arrow-square-out"></i> lumieduca.com.br</a>
             </div>
 
-            <div class="creation-card">
-                <div class="creation-icon-wrapper">
-                    <i class="fa-solid fa-map-location-dot"></i>
-                </div>
-                <h3>Plataforma de Georreferenciamento</h3>
-                <p>
-                    Aplicações com mapas interativos, rastreamento de
-                    localização e análise geoespacial.
-                </p>
+            <div class="project-card" style="border-left-color: var(--accent-secondary);">
+                <h3 style="margin: 0; color: #fff;">Instituto Sentinela</h3>
+                <p style="margin: 5px 0 10px 0; font-size: 0.9rem;">Plataforma de georreferenciamento na Amazônia.</p>
+                <a href="https://sentineladaamazonia.org" target="_blank" class="project-link" style="color: var(--accent-secondary);"><i class="ph ph-arrow-square-out"></i> sentineladaamazonia.org</a>
             </div>
 
-            <div class="creation-card">
-                <div class="creation-icon-wrapper">
-                    <i class="fa-solid fa-user-gear"></i> 
-                </div>
-                <h3>Automação de Processos com IA</h3>
-                <p>
-                    Criação de agentes inteligentes para automatizar
-                    workflows e otimizar operações.
-                </p>
+             <div class="project-card" style="margin-bottom: 0; border-left-color: #fff;">
+                <h3 style="margin: 0; color: #fff;">SPP (Sesma)</h3>
+                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Sistema de controle financeiro e gestão pública.</p>
             </div>
+        </div>
+    </div>
 
-        </div> </div> </section>
-<section id="participacoes" class="participacoes-section">
-    <div class="participacoes-container">
+    <div class="section" id="sec-contact">
+        <div class="glass-card" style="text-align: center; padding-top: 3rem; padding-bottom: 3rem;">
+            <i class="ph ph-paper-plane-tilt" style="font-size: 4rem; color: var(--accent); margin-bottom: 20px; filter: drop-shadow(0 0 15px var(--accent));"></i>
+            <h2 style="justify-content: center;">Contato</h2>
+            <p>Pronto para transformar sua ideia em realidade?</p>
+            
+            <div style="margin-top: 35px;">
+                <a href="https://wa.me/5591999440334" target="_blank" class="btn-social btn-whatsapp">
+                    <i class="ph ph-whatsapp-logo" style="font-size: 1.4rem;"></i> Chamar no WhatsApp
+                </a>
+                <a href="https://instagram.com/mattheuss.ls" target="_blank" class="btn-social btn-insta">
+                    <i class="ph ph-instagram-logo" style="font-size: 1.4rem;"></i> @mattheuss.ls
+                </a>
+            </div>
+        </div>
+    </div>
+
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    </script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+
+        // --- GLOBAL STATE ---
+        let MODE = 'SCROLL'; 
+        let robot, mixer, actions = {}, activeAction;
+        const SCROLL_LEN = 400; // Distância total do scroll
         
-        <h2 class="section-title">Eventos e Participações</h2>
-        <p class="section-subtitle">
-            Engajamento ativo na comunidade tech através de hackathons e
-            conferências
-        </p>
+        // LIMITES DO MAPA (Para colisões e deslizamento)
+        const BOUNDS = { minX: -50, maxX: 50, minZ: -550, maxZ: 50 };
+        const LAKE = { x: -60, z: -280, radius: 42 };
 
-        <div class="participacoes-grid">
+        // --- CENA ---
+        const scene = new THREE.Scene();
+        const fogColor = new THREE.Color(0x020804);
+        scene.background = fogColor;
+        scene.fog = new THREE.FogExp2(fogColor, 0.015);
 
-            <article class="event-card">
-                <div class="event-card-header">
-                    <div class="event-icon-wrapper">
-                        <i class="fa-solid fa-trophy"></i> </div>
-                    <span class="event-year">2025</span>
-                </div>
-                
-                <h3>Hackathon DIBB</h3>
-                <div class="event-location">
-                    <i class="fa-solid fa-map-marker-alt"></i>
-                    <span>Belém, PA</span>
-                </div>
-                <p>
-                    Participação em hackathon focado em inovação e desenvolvimento de
-                    soluções tecnológicas.
-                </p>
-                
-                <hr class="event-divider">
-                
-                <div class="event-role">
-                    <i class="fa-solid fa-user-tag"></i>
-                    <span>Participante</span>
-                </div>
-            </article>
+        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1500);
+        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.shadowMap.enabled = true;
+        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        document.getElementById('canvas-container').appendChild(renderer.domElement);
 
-            <article class="event-card">
-                <div class="event-card-header">
-                    <div class="event-icon-wrapper">
-                        <i class="fa-solid fa-brain"></i> </div>
-                    <span class="event-year">2025</span>
-                </div>
+        // --- ILUMINAÇÃO ---
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
+        scene.add(ambientLight);
 
-                <h3>Evento de IA Generativa - Adapta</h3>
-                <div class="event-location">
-                    <i class="fa-solid fa-map-marker-alt"></i>
-                    <span>São Paulo, SP</span>
-                </div>
-                <p>
-                    Evento sobre inteligência artificial generativa e suas aplicações práticas.
-                </p>
-                
-                <hr class="event-divider">
-                
-                <div class="event-role">
-                    <i class="fa-solid fa-user-tag"></i>
-                    <span>Participante</span>
-                </div>
-            </article>
+        const sunLight = new THREE.DirectionalLight(0xffe0b5, 3.5);
+        sunLight.position.set(50, 80, 50);
+        sunLight.castShadow = true;
+        sunLight.shadow.mapSize.set(2048, 2048);
+        sunLight.shadow.camera.left = -100; sunLight.shadow.camera.right = 100;
+        sunLight.shadow.camera.top = 100; sunLight.shadow.camera.bottom = -100;
+        scene.add(sunLight);
 
-        </div> </div> </section>
-        <section id="contato" class="contato-section">
-    <div class="contato-container">
+        // --- AMBIENTE ---
         
-        <h2 class="section-title">Vamos Conversar?</h2>
-        <p class="section-subtitle">
-            Entre em contato para discutir seu projeto ou agendar uma reunião
-        </p>
+        // Chão
+        const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 1500), new THREE.MeshStandardMaterial({ color: 0x051005, roughness: 1, metalness: 0 }));
+        ground.rotation.x = -Math.PI / 2; ground.position.z = -250; ground.receiveShadow = true;
+        scene.add(ground);
 
-        <div class="contato-grid">
+        // Pedras no chão
+        const pebbles = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.3, 0), new THREE.MeshLambertMaterial({ color: 0x334433 }), 3000);
+        const dummy = new THREE.Object3D();
+        for(let i=0; i<3000; i++) {
+            dummy.position.set((Math.random()-0.5)*300, 0.1, (Math.random()-0.5)*1000);
+            dummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
+            dummy.scale.setScalar(0.5 + Math.random()); dummy.updateMatrix();
+            pebbles.setMatrixAt(i, dummy.matrix);
+        }
+        scene.add(pebbles);
 
-            <div class="contato-col-left">
+        // Nuvens
+        const cloudGroup = new THREE.Group(); scene.add(cloudGroup);
+        const cloudBoxGeo = new THREE.BoxGeometry(1, 1, 1);
+        const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
+        for(let i=0; i<30; i++) {
+            const cloud = new THREE.Group();
+            for(let j=0; j<5; j++) {
+                const b = new THREE.Mesh(cloudBoxGeo, cloudMat);
+                b.position.set((Math.random()-0.5)*12, (Math.random()-0.5)*3, (Math.random()-0.5)*8);
+                b.scale.setScalar(8 + Math.random()*8);
+                cloud.add(b);
+            }
+            cloud.position.set((Math.random()-0.5)*500, 60+Math.random()*40, -Math.random()*700);
+            cloud.userData.speed = 0.02 + Math.random()*0.03;
+            cloudGroup.add(cloud);
+        }
+
+        // Lago
+        const lake = new THREE.Mesh(new THREE.CircleGeometry(LAKE.radius, 64), new THREE.MeshPhysicalMaterial({ color: 0x0077ff, transmission: 0.7, opacity: 0.85, transparent: true, roughness: 0.05, metalness: 0.2 }));
+        lake.rotation.x = -Math.PI/2; lake.position.set(LAKE.x, 0.2, LAKE.z);
+        scene.add(lake);
+
+        // Objetos do Mundo (Árvores e Cristais) - Gerados Estaticamente
+        const trunkMat = new THREE.MeshLambertMaterial({ color: 0x3d2e23 });
+        const leafMat = new THREE.MeshLambertMaterial({ color: 0x0d5c36 });
+        const crystalMat = new THREE.MeshPhongMaterial({ color: 0xbd00ff, emissive: 0x330066, shininess: 50 });
+        const treeT = new THREE.CylinderGeometry(0.3, 0.6, 3, 6);
+        const treeC = new THREE.ConeGeometry(3, 6, 6);
+        const crystG = new THREE.ConeGeometry(0.5, 3, 4);
+
+        function createTree(x, z) {
+            if(Math.sqrt((x-LAKE.x)**2 + (z-LAKE.z)**2) < LAKE.radius + 6) return; // Evita lago
+            if(Math.abs(x) < 8) return; // Evita caminho central
+            const grp = new THREE.Group();
+            const t = new THREE.Mesh(treeT, trunkMat); t.position.y = 1.5; t.castShadow = true; grp.add(t);
+            const l = new THREE.Mesh(treeC, leafMat); l.position.y = 4.5; l.castShadow = true; l.scale.setScalar(0.8+Math.random()*0.5); grp.add(l);
+            grp.position.set(x,0,z); grp.rotation.y = Math.random()*Math.PI; scene.add(grp);
+        }
+        function createCrystal(x, z) {
+            const c = new THREE.Mesh(crystG, crystalMat);
+            c.position.set(x, 1.5, z); c.scale.setScalar(1+Math.random()*1.5); c.castShadow = true;
+            c.rotation.set((Math.random()-0.5)*0.5, 0, (Math.random()-0.5)*0.5);
+            scene.add(c);
+        }
+
+        // Popula o mundo
+        for(let z=50; z>-SCROLL_LEN-200; z-=8) {
+            createTree(-15 - Math.random()*60, z);
+            createTree(15 + Math.random()*60, z);
+            if(Math.random()>0.85) createCrystal(-20 - Math.random()*20, z);
+            if(Math.random()>0.85) createCrystal(20 + Math.random()*20, z);
+        }
+
+        // Vagalumes
+        const ffGeo = new THREE.BufferGeometry();
+        const ffPos = new Float32Array(500 * 3);
+        for(let i=0; i<500*3; i+=3) { ffPos[i]=(Math.random()-0.5)*150; ffPos[i+1]=1+Math.random()*8; ffPos[i+2]=50-Math.random()*600; }
+        ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
+        const fireflies = new THREE.Points(ffGeo, new THREE.PointsMaterial({size: 0.3, color: 0xaaff00, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.8}));
+        scene.add(fireflies);
+
+        // Estrelas
+        const sGeo = new THREE.BufferGeometry();
+        const sPos = new Float32Array(2000*3);
+        for(let i=0; i<2000*3; i+=3) { sPos[i]=(Math.random()-0.5)*1200; sPos[i+1]=200+Math.random()*300; sPos[i+2]=(Math.random()-0.5)*1200; }
+        sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
+        scene.add(new THREE.Points(sGeo, new THREE.PointsMaterial({size: 0.9, color: 0xffffff, transparent: true, opacity: 0.8})));
+
+        // Chuva
+        const rGeo = new THREE.BufferGeometry();
+        const rPos = new Float32Array(10000*3);
+        for(let i=0; i<30000; i++) rPos[i] = (Math.random()-0.5)*200;
+        rGeo.setAttribute('position', new THREE.BufferAttribute(rPos, 3));
+        const rainSystem = new THREE.Points(rGeo, new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.1, transparent: true, opacity: 0.6}));
+        rainSystem.visible = false; scene.add(rainSystem);
+
+        // Barreiras de Laser
+        function createBarrier(x) {
+            const b = new THREE.Mesh(new THREE.BoxGeometry(0.2, 50, 1000), new THREE.MeshBasicMaterial({color: 0x00ff9d, transparent: true, opacity: 0.05}));
+            b.position.set(x, 25, -250); scene.add(b);
+            const l = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 1000), new THREE.MeshBasicMaterial({color: 0x00ff9d, transparent: true, opacity: 0.5}));
+            l.position.set(x, 0.2, -250); scene.add(l);
+        }
+        createBarrier(BOUNDS.minX); createBarrier(BOUNDS.maxX);
+
+
+        // --- ROBÔ ---
+        const loader = new GLTFLoader();
+        loader.load('https://threejs.org/examples/models/gltf/Xbot.glb', (gltf) => {
+            robot = gltf.scene;
+            robot.scale.setScalar(1.5);
+            robot.rotation.y = Math.PI;
+            scene.add(robot);
+            robot.traverse(o => { if(o.isMesh) { o.castShadow=true; o.receiveShadow=true; }});
+
+            mixer = new THREE.AnimationMixer(robot);
+            actions['Idle'] = mixer.clipAction(gltf.animations.find(a => a.name === 'idle'));
+            actions['Running'] = mixer.clipAction(gltf.animations.find(a => a.name === 'run'));
+            activeAction = actions['Idle']; activeAction.play();
+
+            document.getElementById('loading').style.opacity = 0;
+            setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
+            initScroll();
+        });
+
+
+        // --- INPUT HANDLING ---
+        const joyBase = document.getElementById('joy-base');
+        const joyStick = document.getElementById('joy-stick');
+        let joyData = { x: 0, y: 0, active: false };
+
+        const handleJoy = (cx, cy) => {
+            const rect = joyBase.getBoundingClientRect();
+            const c = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
+            let dx = cx - c.x, dy = cy - c.y;
+            const dist = Math.sqrt(dx*dx + dy*dy), max = rect.width/2;
+            if(dist > max) { const a = Math.atan2(dy, dx); dx = Math.cos(a)*max; dy = Math.sin(a)*max; }
+            joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            
+            // Deadzone check
+            let nx = dx/max; let ny = dy/max;
+            if (Math.abs(nx) < 0.1) nx = 0; if (Math.abs(ny) < 0.1) ny = 0;
+            
+            joyData.x = nx; joyData.y = ny; joyData.active = true;
+        };
+        const resetJoy = () => { joyStick.style.transform = `translate(-50%, -50%)`; joyData = { x: 0, y: 0, active: false }; };
+        joyBase.addEventListener('touchstart', (e)=>{e.preventDefault(); handleJoy(e.touches[0].clientX, e.touches[0].clientY)}, {passive: false});
+        joyBase.addEventListener('touchmove', (e)=>{e.preventDefault(); handleJoy(e.touches[0].clientX, e.touches[0].clientY)}, {passive: false});
+        joyBase.addEventListener('touchend', resetJoy);
+
+
+        // --- LOGIC ---
+        gsap.registerPlugin(ScrollTrigger);
+        let scrollTimeout;
+
+        function initScroll() {
+            // Sections
+            ['#sec-hero', '#sec-about', '#sec-projects', '#sec-contact'].forEach((id, i) => {
+                const s = i * 0.22;
+                ScrollTrigger.create({ trigger: "body", start: `${s*100}% top`, end: `${(s+0.2)*100}% top`, toggleClass: { targets: id, className: "active" } });
+            });
+            ScrollTrigger.create({ trigger: "body", start: "95% bottom", toggleClass: { targets: "#explore-btn-container", className: "visible" } });
+
+            // Colors
+            const tl = gsap.timeline({ scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1 } });
+            tl.to(scene.fog.color, { r:0.2, g:0.05, b:0.2 }, 0.4).to(scene.background, { r:0.1, g:0.02, b:0.1 }, 0.4).to(sunLight.color, { r:1, g:0.5, b:0.1 }, 0.4);
+            tl.to(scene.fog.color, { r:0.01, g:0.02, b:0.05 }, 0.85).to(scene.background, { r:0, g:0.01, b:0.03 }, 0.85).to(sunLight, { intensity: 0.1 }, 0.85);
+
+            // Scroll Movement
+            ScrollTrigger.create({
+                trigger: "body", start: "top top", end: "bottom bottom", scrub: 0.2,
+                onUpdate: (self) => {
+                    if (MODE === 'EXPLORE') return;
+                    if (joyData.active) {
+                        const s = 25;
+                        if(joyData.y < -0.2) window.scrollBy(0, s); if(joyData.y > 0.2) window.scrollBy(0, -s);
+                    }
+                    const vel = self.getVelocity();
+                    if (Math.abs(vel) > 20) {
+                        if (activeAction !== actions['Running']) { activeAction.fadeOut(0.2); actions['Running'].reset().fadeIn(0.2).play(); activeAction = actions['Running']; }
+                        actions['Running'].timeScale = vel > 0 ? 1.2 : -1.2;
+                        gsap.set(robot.position, { z: -self.progress * SCROLL_LEN });
+                        
+                        clearTimeout(scrollTimeout);
+                        scrollTimeout = setTimeout(() => {
+                            if (activeAction !== actions['Idle']) { activeAction.fadeOut(0.3); actions['Idle'].reset().fadeIn(0.3).play(); activeAction = actions['Idle']; }
+                        }, 100);
+                    }
+                }
+            });
+        }
+
+        window.toggleExploration = function(enable) {
+            MODE = enable ? 'EXPLORE' : 'SCROLL';
+            const ui = document.getElementById('exploration-ui');
+            const btn = document.getElementById('explore-btn-container');
+            const track = document.getElementById('track');
+            const sections = document.querySelectorAll('.section');
+
+            if (enable) {
+                ui.classList.add('active'); btn.classList.remove('visible');
+                track.style.display = 'none'; document.body.style.overflow = 'hidden';
+                sections.forEach(s => s.style.opacity = '0');
+                gsap.to(camera.position, { y: 12, z: robot.position.z + 18, duration: 1.5 });
+                activeAction.fadeOut(0.2); actions['Idle'].reset().fadeIn(0.2).play(); activeAction = actions['Idle'];
+                setWeather('day');
+            } else {
+                ui.classList.remove('active'); btn.classList.add('visible');
+                track.style.display = 'block'; document.body.style.overflow = 'auto';
+                sections.forEach(s => s.style.opacity = '');
+                gsap.to(robot.position, { x: 0, duration: 0.5 }); robot.rotation.y = Math.PI;
+                setWeather('day');
+            }
+        };
+
+        window.setWeather = function(type) {
+            document.querySelectorAll('.weather-btn').forEach(b => b.classList.remove('active'));
+            event.currentTarget.classList.add('active');
+            const c = {
+                day: { bg: 0x88ccff, fog: 0xbbeeff, sun: 2 },
+                night: { bg: 0x000000, fog: 0x000000, sun: 0.1 },
+                rain: { bg: 0x111111, fog: 0x111111, sun: 0.5 },
+                cloudy: { bg: 0x555555, fog: 0x555555, sun: 0.8 }
+            }[type];
+            gsap.to(scene.background, { r: new THREE.Color(c.bg).r, g: new THREE.Color(c.bg).g, b: new THREE.Color(c.bg).b, duration: 1 });
+            gsap.to(scene.fog.color, { r: new THREE.Color(c.fog).r, g: new THREE.Color(c.fog).g, b: new THREE.Color(c.fog).b, duration: 1 });
+            gsap.to(sunLight, { intensity: c.sun, duration: 1 });
+            rainSystem.visible = (type === 'rain');
+        }
+
+        const clock = new THREE.Clock();
+        function animate() {
+            requestAnimationFrame(animate);
+            const dt = clock.getDelta(); const time = clock.elapsedTime;
+            if (mixer) mixer.update(dt);
+            if (!robot) return;
+
+            if (MODE === 'EXPLORE') {
+                if (joyData.active) {
+                    const speed = 20 * dt;
+                    const nextX = robot.position.x + joyData.x * speed;
+                    const nextZ = robot.position.z + joyData.y * speed;
+                    
+                    // COLLISION CLAMPING (SLIDING WALLS)
+                    // Verifica X
+                    let safeX = nextX;
+                    if (safeX < BOUNDS.minX) safeX = BOUNDS.minX;
+                    if (safeX > BOUNDS.maxX) safeX = BOUNDS.maxX;
+                    
+                    // Verifica Z
+                    let safeZ = nextZ;
+                    if (safeZ < BOUNDS.minZ) safeZ = BOUNDS.minZ;
+                    if (safeZ > BOUNDS.maxZ) safeZ = BOUNDS.maxZ;
+
+                    // Colisão Lago
+                    const distToLake = Math.sqrt((safeX - LAKE.x)**2 + (safeZ - LAKE.z)**2);
+                    if (distToLake < LAKE.radius + 1) {
+                        // Empurra para fora do lago
+                        const angle = Math.atan2(safeZ - LAKE.z, safeX - LAKE.x);
+                        safeX = LAKE.x + Math.cos(angle) * (LAKE.radius + 1.1);
+                        safeZ = LAKE.z + Math.sin(angle) * (LAKE.radius + 1.1);
+                    }
+
+                    robot.position.x = safeX;
+                    robot.position.z = safeZ;
+                    robot.rotation.y = Math.atan2(joyData.x, joyData.y);
+
+                    if (activeAction !== actions['Running']) { activeAction.fadeOut(0.1); actions['Running'].reset().fadeIn(0.1).play(); activeAction = actions['Running']; }
+                } else {
+                    if (activeAction !== actions['Idle']) { activeAction.fadeOut(0.2); actions['Idle'].reset().fadeIn(0.2).play(); activeAction = actions['Idle']; }
+                }
                 
-                <div class="contact-card whatsapp">
-                    <div class="card-header">
-                        <div class="card-icon-wrapper">
-                            <i class="fa-brands fa-whatsapp"></i>
-                        </div>
-                        <div>
-                            <h3>WhatsApp</h3>
-                            <span>Resposta rápida garantida</span>
-                        </div>
-                    </div>
-                    <a href="https://api.whatsapp.com/send?phone=5591999440334" target="_blank" rel="noopener noreferrer" class="card-button">
-                        Enviar mensagem
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </a>
-                </div>
-
-                <div class="contact-card instagram">
-                    <div class="card-header">
-                        <div class="card-icon-wrapper">
-                            <i class="fa-brands fa-instagram"></i>
-                        </div>
-                        <div>
-                            <h3>Instagram</h3>
-                            <span>@mattheuss.ls</span>
-                        </div>
-                    </div>
-                    <a href="https://instagram.com/mattheuss.ls" target="_blank" rel="noopener noreferrer" class="card-button">
-                        Seguir no Instagram
-                        <i class="fa-solid fa-paper-plane"></i>
-                    </a>
-                </div>
-
-                <div class="contact-card agendar">
-                    <div class="card-header">
-                        <div class="card-icon-wrapper">
-                            <i class="fa-solid fa-calendar-check"></i>
-                        </div>
-                        <div>
-                            <h3>Agendar Reunião</h3>
-                            <span>Vamos marcar um horário</span>
-                        </div>
-                    </div>
-                    <a href="#" target="_blank" class="card-button-secondary">
-                        Marcar reunião
-                        <i class="fa-solid fa-calendar-day"></i>
-                    </a>
-                </div>
-
-            </div> <div class="contato-col-right">
+                // Camera Follow
+                camera.position.x += (robot.position.x - camera.position.x) * 0.1;
+                camera.position.z += ((robot.position.z + 15) - camera.position.z) * 0.1;
+                camera.position.y = 10; camera.lookAt(robot.position.x, 3, robot.position.z);
+            } 
+            else {
+                // Scroll Follow
+                const targetZ = robot.position.z + 10;
+                camera.position.z += (targetZ - camera.position.z) * 0.1;
+                camera.position.y = 5; camera.position.x = 0;
+                camera.lookAt(0, 2, robot.position.z - 5);
                 
-                <div class="why-hire-card">
-                    <h4>Por que me contratar?</h4>
-                    <ul>
-                        <li><i class="fa-solid fa-check-circle"></i> Experiência comprovada em projetos de impacto</li>
-                        <li><i class="fa-solid fa-check-circle"></i> Expertise em múltiplas tecnologias e frameworks</li>
-                        <li><i class="fa-solid fa-check-circle"></i> Foco em UI/UX e experiência do usuário</li>
-                        <li><i class="fa-solid fa-check-circle"></i> Desenvolvimento ágil e entregas pontuais</li>
-                        <li><i class="fa-solid fa-check-circle"></i> Comunicação clara e transparente</li>
-                        <li><i class="fa-solid fa-check-circle"></i> Suporte técnico contínuo</li>
-                    </ul>
-                </div>
+                if (joyData.active) {
+                    if(joyData.y < -0.2) window.scrollBy(0, 20);
+                    if(joyData.y > 0.2) window.scrollBy(0, -20);
+                }
+            }
 
-                <div class="info-grid">
-                    <div class="info-box">
-                        <i class="fa-solid fa-map-marker-alt"></i>
-                        <div>
-                            <strong>Localização</strong>
-                            <span>Belém, Pará, Brasil</span>
-                        </div>
-                    </div>
-                    <div class="info-box">
-                        <i class="fa-solid fa-briefcase"></i> <div>
-                            <strong>Disponibilidade</strong>
-                            <span>Projetos freelance e consultorias</span>
-                        </div>
-                    </div>
-                </div>
+            // VFX
+            cloudGroup.children.forEach(c => { c.position.x += c.userData.speed; if(c.position.x > 300) c.position.x = -300; });
+            const ffPos = fireflies.geometry.attributes.position.array;
+            for(let i=1; i<ffPos.length; i+=3) ffPos[i] += Math.sin(time*3 + ffPos[i-1])*0.05;
+            fireflies.geometry.attributes.position.needsUpdate = true;
+            if (rainSystem.visible) {
+                const rPos = rainSystem.geometry.attributes.position.array;
+                for(let i=1; i<rPos.length; i+=3) { rPos[i] -= 1.5; if(rPos[i] < 0) rPos[i] = 100; }
+                rainSystem.geometry.attributes.position.needsUpdate = true;
+                rainSystem.position.set(robot.position.x, 0, robot.position.z);
+            }
+            renderer.render(scene, camera);
+        }
+        animate();
 
-                <div class="cta-bar">
-                    <h4>Pronto para começar seu projeto?</h4>
-                    <p>Entre em contato agora e vamos transformar suas ideias em realidade</p>
-                </div>
-
-            </div> </div> </div> </section>
-
-<footer class="footer-section">
-    <p>© 2024 Lisandro Ribeiro. Desenvolvedor Full Stack em Belém, Pará.</p>
-</footer>
-
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
 </body>
-
 </html>
