@@ -2,621 +2,548 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Lisandro Ribeiro | Infinite World</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lisandro Ribeiro | Full Stack & GIS Analyst</title>
     
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;500;700;900&display=swap" rel="stylesheet">
-    <script src="https://unpkg.com/@phosphor-icons/web"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
 
     <style>
-        /* --- CONFIGURAÇÕES GERAIS --- */
+        /* --- 1. RESET E VARIAVEIS --- */
         :root {
-            --accent: #00ff9d;
-            --accent-secondary: #bd00ff;
-            --glass-bg: rgba(5, 12, 8, 0.85);
-            --glass-border: rgba(0, 255, 157, 0.2);
+            --bg-body: #0a0b10;
+            --bg-card: #14161f;
+            --primary: #00d2ff;
+            --secondary: #7928ca;
+            --text-main: #ffffff;
+            --text-muted: #94a3b8;
+            --border: rgba(255, 255, 255, 0.08);
         }
 
-        body { 
-            margin: 0; background-color: #010502; 
-            font-family: 'Outfit', sans-serif; 
-            overflow-x: hidden; color: #fff;
-            -webkit-tap-highlight-color: transparent;
-            overscroll-behavior: none; user-select: none;
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            overflow-x: hidden;
+            line-height: 1.6;
         }
 
-        #canvas-container { position: fixed; top: 0; left: 0; width: 100%; height: 100vh; z-index: -1; }
+        h1, h2, h3, .mono { font-family: 'JetBrains Mono', monospace; }
+        a { text-decoration: none; color: inherit; transition: 0.3s; }
 
-        /* --- LOADING SCREEN --- */
-        #loading {
+        /* --- 2. BACKGROUND 3D (CANVAS FIXO) --- */
+        #canvas-bg {
             position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-            background: #010502; display: flex; flex-direction: column;
-            justify-content: center; align-items: center; z-index: 9999;
-            transition: opacity 1s ease-out;
-        }
-        .spinner {
-            width: 60px; height: 60px; border: 4px solid rgba(255,255,255,0.1);
-            border-top-color: var(--accent); border-radius: 50%;
-            animation: spin 0.8s linear infinite; margin-bottom: 20px;
-        }
-        @keyframes spin { to { transform: rotate(360deg); } }
-        .loading-text { letter-spacing: 4px; font-weight: 900; font-size: 0.9rem; color: #fff; text-transform: uppercase; }
-
-        /* --- JOYSTICK (Mobile) --- */
-        #joystick-zone {
-            position: fixed; bottom: 40px; left: 30px; width: 140px; height: 140px;
-            z-index: 5000; display: none; /* Ativado via JS no mobile */
-            touch-action: none; /* Impede scroll do browser ao tocar no joystick */
-        }
-        .joystick-base {
-            width: 100%; height: 100%; background: rgba(255, 255, 255, 0.05);
-            border: 2px solid rgba(0, 255, 157, 0.4); border-radius: 50%;
-            position: relative; backdrop-filter: blur(5px);
-            box-shadow: 0 0 25px rgba(0,0,0,0.5);
-        }
-        .joystick-stick {
-            width: 60px; height: 60px; background: var(--accent);
-            border-radius: 50%; position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            box-shadow: 0 0 20px var(--accent); pointer-events: none;
-            transition: transform 0.05s linear; /* Movimento mais responsivo */
+            z-index: -1; pointer-events: none;
+            /* Fundo escuro levemente azulado para destacar o wireframe branco */
+            background: radial-gradient(circle at center, #151925 0%, #000000 100%);
         }
 
-        /* --- BOTÃO EXPLORAR --- */
-        #explore-btn-container {
-            position: absolute; top: 1450vh; width: 100%; text-align: center; z-index: 50;
-            padding-bottom: 150px; transition: opacity 0.5s; pointer-events: none; opacity: 0;
-        }
-        #explore-btn-container.visible { opacity: 1; pointer-events: auto; }
-        
-        .btn-explore {
-            background: var(--accent); color: #020a05; padding: 18px 50px;
-            font-size: 1.1rem; font-weight: 900; border-radius: 50px; border: none;
-            box-shadow: 0 0 40px rgba(0, 255, 157, 0.6); cursor: pointer;
-            animation: pulse 2s infinite; text-transform: uppercase; letter-spacing: 2px;
-            display: inline-flex; align-items: center; gap: 10px;
-        }
-        @keyframes pulse { 0% {transform: scale(1);} 50% {transform: scale(1.03);} 100% {transform: scale(1);} }
+        /* --- 3. COMPONENTES UI --- */
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 1.5rem; }
+        section { padding: 6rem 0; position: relative; }
 
-        /* --- HUD MODO EXPLORAÇÃO --- */
-        #exploration-ui {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-            z-index: 2000; pointer-events: none; opacity: 0; transition: opacity 0.5s;
+        .btn {
+            display: inline-flex; align-items: center; gap: 0.5rem;
+            padding: 0.8rem 1.5rem; border-radius: 6px; font-weight: 600; cursor: pointer;
+            transition: all 0.3s ease; border: none; font-size: 0.95rem;
         }
-        #exploration-ui.active { opacity: 1; pointer-events: auto; }
+        .btn-primary { background: var(--primary); color: #000; }
+        .btn-primary:hover { box-shadow: 0 0 20px rgba(0, 210, 255, 0.4); transform: translateY(-2px); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: #fff; }
+        .btn-outline:hover { border-color: var(--primary); color: var(--primary); }
 
-        .top-bar { padding: 25px; display: flex; justify-content: space-between; align-items: flex-start; }
-        
-        .btn-exit {
-            background: rgba(255, 50, 50, 0.15); border: 1px solid #ff4444; color: #ff4444;
-            padding: 10px 24px; border-radius: 30px; font-weight: 700; cursor: pointer;
-            backdrop-filter: blur(10px); display: flex; align-items: center; gap: 8px;
-            transition: 0.3s;
-        }
-        .btn-exit:hover { background: rgba(255, 50, 50, 0.3); color: #fff; }
+        .section-header { margin-bottom: 4rem; text-align: center; }
+        .section-title { font-size: 2.5rem; margin-bottom: 1rem; color: #fff; }
 
-        .weather-panel {
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(15px);
-            padding: 8px; border-radius: 12px; display: flex; gap: 8px;
-            border: 1px solid rgba(255,255,255,0.1);
+        /* --- 4. HERO --- */
+        .hero { min-height: 100vh; display: flex; align-items: center; justify-content: center; text-align: center; }
+        .hero-role {
+            display: inline-block; padding: 0.5rem 1rem; border-radius: 50px;
+            background: rgba(0, 210, 255, 0.1); color: var(--primary);
+            font-size: 0.9rem; margin-bottom: 1.5rem; border: 1px solid rgba(0, 210, 255, 0.2);
         }
-        .weather-btn {
-            background: transparent; border: none; color: #888; font-size: 22px;
-            cursor: pointer; transition: 0.3s; width: 40px; height: 40px; border-radius: 8px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .weather-btn:hover, .weather-btn.active { background: rgba(255,255,255,0.15); color: var(--accent); }
+        .hero h1 { font-size: 4rem; line-height: 1.1; margin-bottom: 1.5rem; letter-spacing: -2px; }
+        .hero p { font-size: 1.2rem; color: var(--text-muted); margin-bottom: 2.5rem; max-width: 600px; margin-inline: auto; }
 
-        /* --- CONTEÚDO (CARDS) --- */
-        #track { height: 1500vh; pointer-events: none; }
-        
-        .section {
-            position: fixed; top: 50%; left: 50%; 
-            transform: translate(-50%, -50%) scale(0.9) translateY(40px);
-            width: 88%; max-width: 650px; opacity: 0; visibility: hidden; pointer-events: none;
-            transition: all 0.8s cubic-bezier(0.19, 1, 0.22, 1); z-index: 10;
-        }
-        .section.active { opacity: 1; visibility: visible; transform: translate(-50%, -50%) scale(1) translateY(0); pointer-events: auto; }
-
+        /* --- 5. CARDS DE SKILL E PROJETO --- */
         .glass-card {
-            background: var(--glass-bg); backdrop-filter: blur(25px); -webkit-backdrop-filter: blur(25px);
-            border: 1px solid var(--glass-border); border-radius: 24px; padding: 2.5rem;
-            box-shadow: 0 30px 60px rgba(0,0,0,0.7); position: relative; overflow: hidden;
+            background: rgba(20, 22, 31, 0.6); border: 1px solid var(--border);
+            padding: 2rem; border-radius: 12px; backdrop-filter: blur(10px); transition: 0.3s;
         }
-        .glass-card::before {
-            content: ''; position: absolute; top:0; left:0; width: 100%; height: 4px;
-            background: linear-gradient(90deg, var(--accent), var(--accent-secondary));
-        }
-
-        /* TIPOGRAFIA & CORREÇÃO CSS */
-        h1 { 
-            font-size: 2.4rem; margin: 0 0 10px 0; 
-            background: linear-gradient(90deg, #fff, var(--accent)); 
-            -webkit-background-clip: text; /* Vendor prefix */
-            background-clip: text; /* Standard */
-            -webkit-text-fill-color: transparent; 
-            color: transparent; /* Fallback/Requirement */
-        }
-        h2 { color: var(--accent); margin-bottom: 20px; font-size: 1.6rem; display: flex; align-items: center; gap: 10px; text-transform: uppercase;}
-        p { color: #a0a0a0; line-height: 1.6; font-size: 1rem; margin-bottom: 20px; }
+        .glass-card:hover { border-color: var(--primary); transform: translateY(-5px); }
         
-        .tag { background: rgba(255,255,255,0.05); padding: 5px 12px; border-radius: 50px; font-size: 0.85rem; color: #ccc; border: 1px solid rgba(255,255,255,0.1); margin-right: 5px; display: inline-block; margin-bottom: 8px; transition: 0.3s;}
-        .tag:hover { border-color: var(--accent); color: var(--accent); background: rgba(0,255,157,0.1); }
+        .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1.5rem; }
+        .skill-icon { font-size: 2rem; color: var(--primary); margin-bottom: 1rem; }
+        
+        .tags { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 1rem; }
+        .tag { font-size: 0.75rem; padding: 0.25rem 0.75rem; border-radius: 4px; background: rgba(255,255,255,0.05); color: #ccc; }
 
         .project-card {
-            background: rgba(0,0,0,0.3); border-radius: 12px; padding: 20px;
-            margin-bottom: 15px; border-left: 3px solid var(--accent); transition: 0.3s;
-            border: 1px solid rgba(255,255,255,0.05);
+            background: rgba(20, 22, 31, 0.7); border: 1px solid var(--border);
+            border-radius: 16px; padding: 2.5rem; margin-bottom: 2rem;
+            display: grid; grid-template-columns: 1fr 1.5fr; gap: 2rem; align-items: center;
         }
-        .project-card:hover { transform: translateX(8px); border-color: var(--glass-border); background: rgba(0,255,157,0.05); }
-        .project-link { display: inline-flex; align-items: center; gap: 6px; margin-top: 10px; color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.9rem; }
-        
-        .btn-social { 
-            display: flex; align-items: center; justify-content: center; gap: 10px;
-            width: 100%; padding: 16px; margin-top: 15px; text-align: center; border-radius: 12px; 
-            text-decoration: none; font-weight: 800; transition: 0.3s;
+        .project-icon {
+            height: 100%; min-height: 200px; border-radius: 12px;
+            background: linear-gradient(135deg, rgba(0,210,255,0.05), rgba(121,40,202,0.05));
+            display: flex; align-items: center; justify-content: center; font-size: 4rem; color: var(--primary);
+            border: 1px solid var(--border);
         }
-        .btn-whatsapp { background: var(--accent); color: #000; box-shadow: 0 5px 20px rgba(0,255,157,0.2); }
-        .btn-insta { background: transparent; border: 2px solid var(--accent-secondary); color: var(--accent-secondary); }
 
-        @media (max-width: 1024px) { #joystick-zone { display: block; } .glass-card { padding: 1.8rem; } h1 {font-size: 2rem;}}
+        /* --- 6. CARROSSEL (UI) --- */
+        .carousel-container {
+            position: relative; border: 1px solid var(--border); border-radius: 20px;
+            background: var(--bg-card); overflow: hidden; min-height: 500px;
+        }
+        .slide {
+            display: none; height: 500px; grid-template-columns: 1fr 1fr;
+            animation: fadeIn 0.5s ease;
+        }
+        .slide.active { display: grid; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .slide-visual {
+            position: relative; border-right: 1px solid var(--border);
+            background: #000; overflow: hidden;
+        }
+        
+        #map-view, #canvas-robot-container { width: 100%; height: 100%; z-index: 10; }
+
+        .slide-content { padding: 3rem; display: flex; flex-direction: column; justify-content: center; }
+        
+        .carousel-nav {
+            position: absolute; bottom: 20px; right: 20px; display: flex; gap: 10px; z-index: 20;
+        }
+        .nav-btn {
+            width: 40px; height: 40px; border-radius: 50%; border: 1px solid var(--border);
+            background: rgba(0,0,0,0.5); color: #fff; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; transition: 0.3s;
+        }
+        .nav-btn:hover { background: var(--primary); color: #000; border-color: var(--primary); }
+
+        .loader-text {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            color: var(--primary); font-family: 'JetBrains Mono'; font-size: 0.8rem;
+            pointer-events: none; z-index: 5;
+        }
+
+        /* Responsivo */
+        @media (max-width: 900px) {
+            .hero h1 { font-size: 2.5rem; }
+            .project-card, .slide { grid-template-columns: 1fr; }
+            .slide { height: auto; }
+            .slide-visual { height: 350px; border-right: none; border-bottom: 1px solid var(--border); }
+        }
     </style>
 </head>
 <body>
 
-    <div id="loading">
-        <div class="spinner"></div>
-        <div class="loading-text">GERANDO MUNDO</div>
-    </div>
+    <div id="canvas-bg"></div>
 
-    <div id="canvas-container"></div>
-    <div id="track"></div>
-
-    <div id="exploration-ui">
-        <div class="top-bar">
-            <button class="btn-exit" onclick="toggleExploration(false)">
-                <i class="ph ph-arrow-u-up-left"></i> VOLTAR AO SITE
-            </button>
-            <div class="weather-panel">
-                <button class="weather-btn active" onclick="setWeather('day')"><i class="ph ph-sun"></i></button>
-                <button class="weather-btn" onclick="setWeather('cloudy')"><i class="ph ph-cloud"></i></button>
-                <button class="weather-btn" onclick="setWeather('rain')"><i class="ph ph-cloud-rain"></i></button>
-                <button class="weather-btn" onclick="setWeather('night')"><i class="ph ph-moon-stars"></i></button>
+    <section class="hero">
+        <div class="container">
+            <span class="hero-role"><i class="fa-solid fa-code"></i> Desenvolvedor Full Stack</span>
+            <h1>Lisandro Ribeiro</h1>
+            <p>Especialista em transformar dados complexos em sistemas inteligentes. Foco em arquitetura escalável, PHP/Laravel e Geoprocessamento.</p>
+            <div style="display: flex; gap: 1rem; justify-content: center;">
+                <a href="#contato" class="btn btn-primary">Entrar em Contato</a>
+                <a href="#projetos" class="btn btn-outline">Ver Portfólio</a>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div id="joystick-zone">
-        <div class="joystick-base" id="joy-base">
-            <div class="joystick-stick" id="joy-stick"></div>
-        </div>
-    </div>
-
-    <div id="explore-btn-container">
-        <button class="btn-explore" onclick="toggleExploration(true)">
-            <i class="ph ph-game-controller"></i> Explorar Mapa Livre
-        </button>
-    </div>
-
-    <div class="section" id="sec-hero">
-        <div class="glass-card" style="text-align: center;">
-            <div style="font-size: 0.8rem; font-weight: 700; color: var(--accent); letter-spacing: 2px; margin-bottom: 10px;">PORTFÓLIO IMERSIVO</div>
-            <h1>LISANDRO RIBEIRO</h1>
-            <p>Desenvolvedor Full Stack</p>
-            <p style="font-size: 0.9rem; opacity: 0.7;">Role para baixo ou use o Joystick para iniciar a jornada</p>
-        </div>
-    </div>
-
-    <div class="section" id="sec-about">
-        <div class="glass-card">
-            <h2><i class="ph ph-fingerprint"></i> Sobre Mim</h2>
-            <p>Especialista em criar soluções que conectam complexidade técnica com experiência do usuário intuitiva.</p>
-            <div style="margin-top: 20px;">
-                <h3 style="font-size: 0.9rem; color: #fff; text-transform: uppercase; margin-bottom: 10px;">Tech Stack</h3>
-                <div class="skill-grid">
-                    <span class="tag">JavaScript</span><span class="tag">React</span><span class="tag">PHP / Laravel</span>
-                    <span class="tag">Node.js</span><span class="tag">Three.js</span><span class="tag">SQL</span>
-                    <span class="tag">IA & Automação</span><span class="tag">UI/UX Figma</span>
+    <section id="skills">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Stack Tecnológico</h2>
+            </div>
+            <div class="skills-grid">
+                <div class="glass-card">
+                    <i class="fa-solid fa-server skill-icon"></i>
+                    <h3>Backend & Core</h3>
+                    <div class="tags"><span class="tag">PHP 8+</span><span class="tag">Laravel</span><span class="tag">Node.js</span><span class="tag">MySQL</span></div>
+                </div>
+                <div class="glass-card">
+                    <i class="fa-solid fa-layer-group skill-icon"></i>
+                    <h3>Frontend</h3>
+                    <div class="tags"><span class="tag">React</span><span class="tag">Tailwind</span><span class="tag">JS (ES6+)</span></div>
+                </div>
+                <div class="glass-card">
+                    <i class="fa-solid fa-map-location-dot skill-icon"></i>
+                    <h3>Geoprocessamento</h3>
+                    <div class="tags"><span class="tag">Leaflet</span><span class="tag">PostGIS</span><span class="tag">Mapbox</span></div>
+                </div>
+                <div class="glass-card">
+                    <i class="fa-solid fa-robot skill-icon"></i>
+                    <h3>Inovação & IA</h3>
+                    <div class="tags"><span class="tag">API Gemini</span><span class="tag">Automação</span><span class="tag">SaaS</span></div>
                 </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="section" id="sec-projects">
-        <div class="glass-card">
-            <h2><i class="ph ph-code"></i> Projetos</h2>
-            
+    <section id="projetos">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Projetos Recentes</h2>
+            </div>
             <div class="project-card">
-                <h3 style="margin: 0; color: #fff;">Lumi Educa</h3>
-                <p style="margin: 5px 0 10px 0; font-size: 0.9rem;">SaaS educacional completo para gestão pedagógica.</p>
-                <a href="https://lumieduca.com.br" target="_blank" class="project-link"><i class="ph ph-arrow-square-out"></i> lumieduca.com.br</a>
+                <div class="project-icon"><i class="fa-solid fa-leaf"></i></div>
+                <div>
+                    <h3 class="mono" style="color: var(--primary); font-size: 1.5rem;">Instituto Sentinela da Amazônia</h3>
+                    <p style="color: var(--text-muted); margin: 1rem 0;">Atualmente faço parte do Instituto, Criando soluções inovadoras.</p>
+                    <div class="tags"><span class="tag" style="color: var(--primary);">PHP</span><span class="tag">MySQL</span><span class="tag">Leaflet</span></div>
+                    <a href="https://sentineladaamazonia.org" target="_blank" style="display: inline-block; margin-top: 1rem; color: #fff;">Acessar Projeto <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
             </div>
-
-            <div class="project-card" style="border-left-color: var(--accent-secondary);">
-                <h3 style="margin: 0; color: #fff;">Instituto Sentinela</h3>
-                <p style="margin: 5px 0 10px 0; font-size: 0.9rem;">Plataforma de georreferenciamento na Amazônia.</p>
-                <a href="https://sentineladaamazonia.org" target="_blank" class="project-link" style="color: var(--accent-secondary);"><i class="ph ph-arrow-square-out"></i> sentineladaamazonia.org</a>
+            <div class="project-card">
+                <div class="project-icon"><i class="fa-solid fa-chart-pie"></i></div>
+                <div>
+                    <h3 class="mono" style="color: var(--primary); font-size: 1.5rem;">SPP - Sistema Financeiro (SESMA)</h3>
+                    <p style="color: var(--text-muted); margin: 1rem 0;">Sistema interno da Secretaria de Saúde de Belém. Controle de fluxo de caixa e auditoria.</p>
+                    <div class="tags"><span class="tag" style="color: var(--primary);">PHP</span><span class="tag">Dashboards</span></div>
+                </div>
             </div>
-
-             <div class="project-card" style="margin-bottom: 0; border-left-color: #fff;">
-                <h3 style="margin: 0; color: #fff;">SPP (Sesma)</h3>
-                <p style="margin: 5px 0 0 0; font-size: 0.9rem;">Sistema de controle financeiro e gestão pública.</p>
+            <div class="project-card">
+                <div class="project-icon"><i class="fa-solid fa-graduation-cap"></i></div>
+                <div>
+                    <h3 class="mono" style="color: var(--primary); font-size: 1.5rem;">Lumi Educa SaaS</h3>
+                    <p style="color: var(--text-muted); margin: 1rem 0;">Plataforma SaaS para gestão escolar completa:</p>
+                    <div class="tags"><span class="tag" style="color: var(--primary);">React</span><span class="tag">JavaScript</span></div>
+                    <a href="https://lumieduca.com.br" target="_blank" style="display: inline-block; margin-top: 1rem; color: #fff;">Conhecer Plataforma <i class="fa-solid fa-arrow-right"></i></a>
+                </div>
             </div>
         </div>
-    </div>
+    </section>
 
-    <div class="section" id="sec-contact">
-        <div class="glass-card" style="text-align: center; padding-top: 3rem; padding-bottom: 3rem;">
-            <i class="ph ph-paper-plane-tilt" style="font-size: 4rem; color: var(--accent); margin-bottom: 20px; filter: drop-shadow(0 0 15px var(--accent));"></i>
-            <h2 style="justify-content: center;">Contato</h2>
-            <p>Pronto para transformar sua ideia em realidade?</p>
+    <section id="servicos">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Soluções Visuais</h2>
+            </div>
             
-            <div style="margin-top: 35px;">
-                <a href="https://wa.me/5591999440334" target="_blank" class="btn-social btn-whatsapp">
-                    <i class="ph ph-whatsapp-logo" style="font-size: 1.4rem;"></i> Chamar no WhatsApp
+            <div class="carousel-container">
+                <div class="slide active">
+                    <div class="slide-visual"><div id="map-view"></div></div>
+                    <div class="slide-content">
+                        <i class="fa-solid fa-map" style="font-size: 2rem; color: var(--primary); margin-bottom: 1rem;"></i>
+                        <h3>Georreferenciamento</h3>
+                        <p style="color: var(--text-muted); margin-top: 1rem;">Mapas interativos com Leaflet. Visualização de dados territoriais em tempo real.</p>
+                    </div>
+                </div>
+
+                <div class="slide">
+                    <div class="slide-visual" style="display: flex; align-items: center; justify-content: center; background: #000;">
+                        <i class="fa-solid fa-network-wired" style="font-size: 5rem; color: #333;"></i>
+                    </div>
+                    <div class="slide-content">
+                        <i class="fa-solid fa-server" style="font-size: 2rem; color: var(--secondary); margin-bottom: 1rem;"></i>
+                        <h3>Arquitetura de Sistemas</h3>
+                        <p style="color: var(--text-muted); margin-top: 1rem;">Backends robustos, APIs RESTful e bancos de dados escaláveis.</p>
+                    </div>
+                </div>
+
+                <div class="slide">
+                    <div class="slide-visual" style="display: flex; align-items: center; justify-content: center; background: #000;">
+                        <i class="fa-solid fa-layer-group" style="font-size: 5rem; color: #333;"></i>
+                    </div>
+                    <div class="slide-content">
+                        <i class="fa-solid fa-pen-ruler" style="font-size: 2rem; color: #ff0055; margin-bottom: 1rem;"></i>
+                        <h3>UI/UX & Dashboards</h3>
+                        <p style="color: var(--text-muted); margin-top: 1rem;">Interfaces modernas que transformam dados complexos em decisões simples.</p>
+                    </div>
+                </div>
+
+                <div class="slide">
+                    <div class="slide-visual" style="background: #111; position: relative;">
+                        <span id="robot-status" class="loader-text">INICIANDO SISTEMAS...</span>
+                        <div id="canvas-robot-container"></div>
+                    </div>
+                    <div class="slide-content">
+                        <i class="fa-solid fa-robot" style="font-size: 2rem; color: #00d2ff; margin-bottom: 1rem;"></i>
+                        <h3>Animação 3D & WebGL</h3>
+                        <p style="color: var(--text-muted); margin-top: 1rem;">Integração de modelos 3D interativos (Three.js) diretamente no navegador.</p>
+                    </div>
+                </div>
+
+                <div class="carousel-nav">
+                    <button class="nav-btn" onclick="prevSlide()"><i class="fa-solid fa-chevron-left"></i></button>
+                    <button class="nav-btn" onclick="nextSlide()"><i class="fa-solid fa-chevron-right"></i></button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section id="contato">
+        <div class="container">
+            <div class="section-header">
+                <h2 class="section-title">Contato</h2>
+            </div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 1rem;">
+                <a href="https://api.whatsapp.com/send?phone=5591999440334" target="_blank" class="btn btn-primary" style="width: 100%; max-width: 300px; justify-content: center;">
+                    <i class="fa-brands fa-whatsapp"></i> WhatsApp (91) 99944-0334
                 </a>
-                <a href="https://instagram.com/mattheuss.ls" target="_blank" class="btn-social btn-insta">
-                    <i class="ph ph-instagram-logo" style="font-size: 1.4rem;"></i> @mattheuss.ls
+                <a href="https://instagram.com/mattheuss.ls" target="_blank" class="btn btn-outline" style="width: 100%; max-width: 300px; justify-content: center;">
+                    <i class="fa-brands fa-instagram"></i> @mattheuss.ls
                 </a>
             </div>
         </div>
-    </div>
+    </section>
 
+    <footer style="text-align: center; padding: 2rem; color: #555; font-size: 0.8rem; border-top: 1px solid var(--border);">
+        &copy; 2025 Lisandro Ribeiro. Todos os direitos reservados.
+    </footer>
 
-    <script type="importmap">
-        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/" } }
+    <script>
+        // --- MAPA ---
+        let map;
+        try {
+            map = L.map('map-view', { attributionControl: false }).setView([-1.4557, -48.4902], 13);
+            L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19 }).addTo(map);
+            L.marker([-1.4557, -48.4902]).addTo(map).bindPopup('<div style="color:black"><b>Belém, PA</b></div>');
+        } catch(e) { console.log("Erro mapa:", e); }
+
+        // --- CARROSSEL ---
+        let currentSlide = 0;
+        const slides = document.querySelectorAll('.slide');
+        const totalSlides = slides.length;
+
+        // Funções globais para os botões HTML funcionarem
+        window.showSlide = function(index) {
+            slides.forEach(s => s.classList.remove('active'));
+            slides[index].classList.add('active');
+
+            // Fix Mapa
+            if(index === 0 && map) { setTimeout(() => { map.invalidateSize(); }, 50); }
+            
+            // Trigger evento customizado para avisar o 3D que o slide mudou
+            const event = new CustomEvent('slideChanged', { detail: { index: index } });
+            window.dispatchEvent(event);
+        };
+
+        window.nextSlide = function() {
+            currentSlide = (currentSlide + 1) % totalSlides;
+            window.showSlide(currentSlide);
+        };
+
+        window.prevSlide = function() {
+            currentSlide = (currentSlide - 1 + totalSlides) % totalSlides;
+            window.showSlide(currentSlide);
+        };
     </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
 
     <script type="module">
         import * as THREE from 'three';
         import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-        // --- GLOBAL STATE ---
-        let MODE = 'SCROLL'; 
-        let robot, mixer, actions = {}, activeAction;
-        const SCROLL_LEN = 400; // Distância total do scroll
-        
-        // LIMITES DO MAPA (Para colisões e deslizamento)
-        const BOUNDS = { minX: -50, maxX: 50, minZ: -550, maxZ: 50 };
-        const LAKE = { x: -60, z: -280, radius: 42 };
+        // --- 1. SPHERE BACKGROUND (Branca/Azulada, cresce com scroll) ---
+        const initBg = () => {
+            const container = document.getElementById('canvas-bg');
+            if(!container) return;
 
-        // --- CENA ---
-        const scene = new THREE.Scene();
-        const fogColor = new THREE.Color(0x020804);
-        scene.background = fogColor;
-        scene.fog = new THREE.FogExp2(fogColor, 0.015);
-
-        const camera = new THREE.PerspectiveCamera(65, window.innerWidth / window.innerHeight, 0.1, 1500);
-        const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: "high-performance" });
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-        renderer.toneMapping = THREE.ACESFilmicToneMapping;
-        document.getElementById('canvas-container').appendChild(renderer.domElement);
-
-        // --- ILUMINAÇÃO ---
-        const ambientLight = new THREE.AmbientLight(0xffffff, 0.3);
-        scene.add(ambientLight);
-
-        const sunLight = new THREE.DirectionalLight(0xffe0b5, 3.5);
-        sunLight.position.set(50, 80, 50);
-        sunLight.castShadow = true;
-        sunLight.shadow.mapSize.set(2048, 2048);
-        sunLight.shadow.camera.left = -100; sunLight.shadow.camera.right = 100;
-        sunLight.shadow.camera.top = 100; sunLight.shadow.camera.bottom = -100;
-        scene.add(sunLight);
-
-        // --- AMBIENTE ---
-        
-        // Chão
-        const ground = new THREE.Mesh(new THREE.PlaneGeometry(600, 1500), new THREE.MeshStandardMaterial({ color: 0x051005, roughness: 1, metalness: 0 }));
-        ground.rotation.x = -Math.PI / 2; ground.position.z = -250; ground.receiveShadow = true;
-        scene.add(ground);
-
-        // Pedras no chão
-        const pebbles = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.3, 0), new THREE.MeshLambertMaterial({ color: 0x334433 }), 3000);
-        const dummy = new THREE.Object3D();
-        for(let i=0; i<3000; i++) {
-            dummy.position.set((Math.random()-0.5)*300, 0.1, (Math.random()-0.5)*1000);
-            dummy.rotation.set(Math.random()*Math.PI, Math.random()*Math.PI, Math.random()*Math.PI);
-            dummy.scale.setScalar(0.5 + Math.random()); dummy.updateMatrix();
-            pebbles.setMatrixAt(i, dummy.matrix);
-        }
-        scene.add(pebbles);
-
-        // Nuvens
-        const cloudGroup = new THREE.Group(); scene.add(cloudGroup);
-        const cloudBoxGeo = new THREE.BoxGeometry(1, 1, 1);
-        const cloudMat = new THREE.MeshLambertMaterial({ color: 0xffffff, transparent: true, opacity: 0.7 });
-        for(let i=0; i<30; i++) {
-            const cloud = new THREE.Group();
-            for(let j=0; j<5; j++) {
-                const b = new THREE.Mesh(cloudBoxGeo, cloudMat);
-                b.position.set((Math.random()-0.5)*12, (Math.random()-0.5)*3, (Math.random()-0.5)*8);
-                b.scale.setScalar(8 + Math.random()*8);
-                cloud.add(b);
-            }
-            cloud.position.set((Math.random()-0.5)*500, 60+Math.random()*40, -Math.random()*700);
-            cloud.userData.speed = 0.02 + Math.random()*0.03;
-            cloudGroup.add(cloud);
-        }
-
-        // Lago
-        const lake = new THREE.Mesh(new THREE.CircleGeometry(LAKE.radius, 64), new THREE.MeshPhysicalMaterial({ color: 0x0077ff, transmission: 0.7, opacity: 0.85, transparent: true, roughness: 0.05, metalness: 0.2 }));
-        lake.rotation.x = -Math.PI/2; lake.position.set(LAKE.x, 0.2, LAKE.z);
-        scene.add(lake);
-
-        // Objetos do Mundo (Árvores e Cristais) - Gerados Estaticamente
-        const trunkMat = new THREE.MeshLambertMaterial({ color: 0x3d2e23 });
-        const leafMat = new THREE.MeshLambertMaterial({ color: 0x0d5c36 });
-        const crystalMat = new THREE.MeshPhongMaterial({ color: 0xbd00ff, emissive: 0x330066, shininess: 50 });
-        const treeT = new THREE.CylinderGeometry(0.3, 0.6, 3, 6);
-        const treeC = new THREE.ConeGeometry(3, 6, 6);
-        const crystG = new THREE.ConeGeometry(0.5, 3, 4);
-
-        function createTree(x, z) {
-            if(Math.sqrt((x-LAKE.x)**2 + (z-LAKE.z)**2) < LAKE.radius + 6) return; // Evita lago
-            if(Math.abs(x) < 8) return; // Evita caminho central
-            const grp = new THREE.Group();
-            const t = new THREE.Mesh(treeT, trunkMat); t.position.y = 1.5; t.castShadow = true; grp.add(t);
-            const l = new THREE.Mesh(treeC, leafMat); l.position.y = 4.5; l.castShadow = true; l.scale.setScalar(0.8+Math.random()*0.5); grp.add(l);
-            grp.position.set(x,0,z); grp.rotation.y = Math.random()*Math.PI; scene.add(grp);
-        }
-        function createCrystal(x, z) {
-            const c = new THREE.Mesh(crystG, crystalMat);
-            c.position.set(x, 1.5, z); c.scale.setScalar(1+Math.random()*1.5); c.castShadow = true;
-            c.rotation.set((Math.random()-0.5)*0.5, 0, (Math.random()-0.5)*0.5);
-            scene.add(c);
-        }
-
-        // Popula o mundo
-        for(let z=50; z>-SCROLL_LEN-200; z-=8) {
-            createTree(-15 - Math.random()*60, z);
-            createTree(15 + Math.random()*60, z);
-            if(Math.random()>0.85) createCrystal(-20 - Math.random()*20, z);
-            if(Math.random()>0.85) createCrystal(20 + Math.random()*20, z);
-        }
-
-        // Vagalumes
-        const ffGeo = new THREE.BufferGeometry();
-        const ffPos = new Float32Array(500 * 3);
-        for(let i=0; i<500*3; i+=3) { ffPos[i]=(Math.random()-0.5)*150; ffPos[i+1]=1+Math.random()*8; ffPos[i+2]=50-Math.random()*600; }
-        ffGeo.setAttribute('position', new THREE.BufferAttribute(ffPos, 3));
-        const fireflies = new THREE.Points(ffGeo, new THREE.PointsMaterial({size: 0.3, color: 0xaaff00, transparent: true, blending: THREE.AdditiveBlending, opacity: 0.8}));
-        scene.add(fireflies);
-
-        // Estrelas
-        const sGeo = new THREE.BufferGeometry();
-        const sPos = new Float32Array(2000*3);
-        for(let i=0; i<2000*3; i+=3) { sPos[i]=(Math.random()-0.5)*1200; sPos[i+1]=200+Math.random()*300; sPos[i+2]=(Math.random()-0.5)*1200; }
-        sGeo.setAttribute('position', new THREE.BufferAttribute(sPos, 3));
-        scene.add(new THREE.Points(sGeo, new THREE.PointsMaterial({size: 0.9, color: 0xffffff, transparent: true, opacity: 0.8})));
-
-        // Chuva
-        const rGeo = new THREE.BufferGeometry();
-        const rPos = new Float32Array(10000*3);
-        for(let i=0; i<30000; i++) rPos[i] = (Math.random()-0.5)*200;
-        rGeo.setAttribute('position', new THREE.BufferAttribute(rPos, 3));
-        const rainSystem = new THREE.Points(rGeo, new THREE.PointsMaterial({color: 0xaaaaaa, size: 0.1, transparent: true, opacity: 0.6}));
-        rainSystem.visible = false; scene.add(rainSystem);
-
-        // Barreiras de Laser
-        function createBarrier(x) {
-            const b = new THREE.Mesh(new THREE.BoxGeometry(0.2, 50, 1000), new THREE.MeshBasicMaterial({color: 0x00ff9d, transparent: true, opacity: 0.05}));
-            b.position.set(x, 25, -250); scene.add(b);
-            const l = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.4, 1000), new THREE.MeshBasicMaterial({color: 0x00ff9d, transparent: true, opacity: 0.5}));
-            l.position.set(x, 0.2, -250); scene.add(l);
-        }
-        createBarrier(BOUNDS.minX); createBarrier(BOUNDS.maxX);
-
-
-        // --- ROBÔ ---
-        const loader = new GLTFLoader();
-        loader.load('https://threejs.org/examples/models/gltf/Xbot.glb', (gltf) => {
-            robot = gltf.scene;
-            robot.scale.setScalar(1.5);
-            robot.rotation.y = Math.PI;
-            scene.add(robot);
-            robot.traverse(o => { if(o.isMesh) { o.castShadow=true; o.receiveShadow=true; }});
-
-            mixer = new THREE.AnimationMixer(robot);
-            actions['Idle'] = mixer.clipAction(gltf.animations.find(a => a.name === 'idle'));
-            actions['Running'] = mixer.clipAction(gltf.animations.find(a => a.name === 'run'));
-            activeAction = actions['Idle']; activeAction.play();
-
-            document.getElementById('loading').style.opacity = 0;
-            setTimeout(() => document.getElementById('loading').style.display = 'none', 1000);
-            initScroll();
-        });
-
-
-        // --- INPUT HANDLING ---
-        const joyBase = document.getElementById('joy-base');
-        const joyStick = document.getElementById('joy-stick');
-        let joyData = { x: 0, y: 0, active: false };
-
-        const handleJoy = (cx, cy) => {
-            const rect = joyBase.getBoundingClientRect();
-            const c = { x: rect.left + rect.width/2, y: rect.top + rect.height/2 };
-            let dx = cx - c.x, dy = cy - c.y;
-            const dist = Math.sqrt(dx*dx + dy*dy), max = rect.width/2;
-            if(dist > max) { const a = Math.atan2(dy, dx); dx = Math.cos(a)*max; dy = Math.sin(a)*max; }
-            joyStick.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+            const scene = new THREE.Scene();
+            // Sem cor de fundo na cena, pois o CSS cuida do gradiente
             
-            // Deadzone check
-            let nx = dx/max; let ny = dy/max;
-            if (Math.abs(nx) < 0.1) nx = 0; if (Math.abs(ny) < 0.1) ny = 0;
+            const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
             
-            joyData.x = nx; joyData.y = ny; joyData.active = true;
-        };
-        const resetJoy = () => { joyStick.style.transform = `translate(-50%, -50%)`; joyData = { x: 0, y: 0, active: false }; };
-        joyBase.addEventListener('touchstart', (e)=>{e.preventDefault(); handleJoy(e.touches[0].clientX, e.touches[0].clientY)}, {passive: false});
-        joyBase.addEventListener('touchmove', (e)=>{e.preventDefault(); handleJoy(e.touches[0].clientX, e.touches[0].clientY)}, {passive: false});
-        joyBase.addEventListener('touchend', resetJoy);
-
-
-        // --- LOGIC ---
-        gsap.registerPlugin(ScrollTrigger);
-        let scrollTimeout;
-
-        function initScroll() {
-            // Sections
-            ['#sec-hero', '#sec-about', '#sec-projects', '#sec-contact'].forEach((id, i) => {
-                const s = i * 0.22;
-                ScrollTrigger.create({ trigger: "body", start: `${s*100}% top`, end: `${(s+0.2)*100}% top`, toggleClass: { targets: id, className: "active" } });
-            });
-            ScrollTrigger.create({ trigger: "body", start: "95% bottom", toggleClass: { targets: "#explore-btn-container", className: "visible" } });
-
-            // Colors
-            const tl = gsap.timeline({ scrollTrigger: { trigger: "body", start: "top top", end: "bottom bottom", scrub: 1 } });
-            tl.to(scene.fog.color, { r:0.2, g:0.05, b:0.2 }, 0.4).to(scene.background, { r:0.1, g:0.02, b:0.1 }, 0.4).to(sunLight.color, { r:1, g:0.5, b:0.1 }, 0.4);
-            tl.to(scene.fog.color, { r:0.01, g:0.02, b:0.05 }, 0.85).to(scene.background, { r:0, g:0.01, b:0.03 }, 0.85).to(sunLight, { intensity: 0.1 }, 0.85);
-
-            // Scroll Movement
-            ScrollTrigger.create({
-                trigger: "body", start: "top top", end: "bottom bottom", scrub: 0.2,
-                onUpdate: (self) => {
-                    if (MODE === 'EXPLORE') return;
-                    if (joyData.active) {
-                        const s = 25;
-                        if(joyData.y < -0.2) window.scrollBy(0, s); if(joyData.y > 0.2) window.scrollBy(0, -s);
-                    }
-                    const vel = self.getVelocity();
-                    if (Math.abs(vel) > 20) {
-                        if (activeAction !== actions['Running']) { activeAction.fadeOut(0.2); actions['Running'].reset().fadeIn(0.2).play(); activeAction = actions['Running']; }
-                        actions['Running'].timeScale = vel > 0 ? 1.2 : -1.2;
-                        gsap.set(robot.position, { z: -self.progress * SCROLL_LEN });
-                        
-                        clearTimeout(scrollTimeout);
-                        scrollTimeout = setTimeout(() => {
-                            if (activeAction !== actions['Idle']) { activeAction.fadeOut(0.3); actions['Idle'].reset().fadeIn(0.3).play(); activeAction = actions['Idle']; }
-                        }, 100);
-                    }
-                }
-            });
-        }
-
-        window.toggleExploration = function(enable) {
-            MODE = enable ? 'EXPLORE' : 'SCROLL';
-            const ui = document.getElementById('exploration-ui');
-            const btn = document.getElementById('explore-btn-container');
-            const track = document.getElementById('track');
-            const sections = document.querySelectorAll('.section');
-
-            if (enable) {
-                ui.classList.add('active'); btn.classList.remove('visible');
-                track.style.display = 'none'; document.body.style.overflow = 'hidden';
-                sections.forEach(s => s.style.opacity = '0');
-                gsap.to(camera.position, { y: 12, z: robot.position.z + 18, duration: 1.5 });
-                activeAction.fadeOut(0.2); actions['Idle'].reset().fadeIn(0.2).play(); activeAction = actions['Idle'];
-                setWeather('day');
-            } else {
-                ui.classList.remove('active'); btn.classList.add('visible');
-                track.style.display = 'block'; document.body.style.overflow = 'auto';
-                sections.forEach(s => s.style.opacity = '');
-                gsap.to(robot.position, { x: 0, duration: 0.5 }); robot.rotation.y = Math.PI;
-                setWeather('day');
-            }
-        };
-
-        window.setWeather = function(type) {
-            document.querySelectorAll('.weather-btn').forEach(b => b.classList.remove('active'));
-            event.currentTarget.classList.add('active');
-            const c = {
-                day: { bg: 0x88ccff, fog: 0xbbeeff, sun: 2 },
-                night: { bg: 0x000000, fog: 0x000000, sun: 0.1 },
-                rain: { bg: 0x111111, fog: 0x111111, sun: 0.5 },
-                cloudy: { bg: 0x555555, fog: 0x555555, sun: 0.8 }
-            }[type];
-            gsap.to(scene.background, { r: new THREE.Color(c.bg).r, g: new THREE.Color(c.bg).g, b: new THREE.Color(c.bg).b, duration: 1 });
-            gsap.to(scene.fog.color, { r: new THREE.Color(c.fog).r, g: new THREE.Color(c.fog).g, b: new THREE.Color(c.fog).b, duration: 1 });
-            gsap.to(sunLight, { intensity: c.sun, duration: 1 });
-            rainSystem.visible = (type === 'rain');
-        }
-
-        const clock = new THREE.Clock();
-        function animate() {
-            requestAnimationFrame(animate);
-            const dt = clock.getDelta(); const time = clock.elapsedTime;
-            if (mixer) mixer.update(dt);
-            if (!robot) return;
-
-            if (MODE === 'EXPLORE') {
-                if (joyData.active) {
-                    const speed = 20 * dt;
-                    const nextX = robot.position.x + joyData.x * speed;
-                    const nextZ = robot.position.z + joyData.y * speed;
-                    
-                    // COLLISION CLAMPING (SLIDING WALLS)
-                    // Verifica X
-                    let safeX = nextX;
-                    if (safeX < BOUNDS.minX) safeX = BOUNDS.minX;
-                    if (safeX > BOUNDS.maxX) safeX = BOUNDS.maxX;
-                    
-                    // Verifica Z
-                    let safeZ = nextZ;
-                    if (safeZ < BOUNDS.minZ) safeZ = BOUNDS.minZ;
-                    if (safeZ > BOUNDS.maxZ) safeZ = BOUNDS.maxZ;
-
-                    // Colisão Lago
-                    const distToLake = Math.sqrt((safeX - LAKE.x)**2 + (safeZ - LAKE.z)**2);
-                    if (distToLake < LAKE.radius + 1) {
-                        // Empurra para fora do lago
-                        const angle = Math.atan2(safeZ - LAKE.z, safeX - LAKE.x);
-                        safeX = LAKE.x + Math.cos(angle) * (LAKE.radius + 1.1);
-                        safeZ = LAKE.z + Math.sin(angle) * (LAKE.radius + 1.1);
-                    }
-
-                    robot.position.x = safeX;
-                    robot.position.z = safeZ;
-                    robot.rotation.y = Math.atan2(joyData.x, joyData.y);
-
-                    if (activeAction !== actions['Running']) { activeAction.fadeOut(0.1); actions['Running'].reset().fadeIn(0.1).play(); activeAction = actions['Running']; }
-                } else {
-                    if (activeAction !== actions['Idle']) { activeAction.fadeOut(0.2); actions['Idle'].reset().fadeIn(0.2).play(); activeAction = actions['Idle']; }
-                }
-                
-                // Camera Follow
-                camera.position.x += (robot.position.x - camera.position.x) * 0.1;
-                camera.position.z += ((robot.position.z + 15) - camera.position.z) * 0.1;
-                camera.position.y = 10; camera.lookAt(robot.position.x, 3, robot.position.z);
-            } 
-            else {
-                // Scroll Follow
-                const targetZ = robot.position.z + 10;
-                camera.position.z += (targetZ - camera.position.z) * 0.1;
-                camera.position.y = 5; camera.position.x = 0;
-                camera.lookAt(0, 2, robot.position.z - 5);
-                
-                if (joyData.active) {
-                    if(joyData.y < -0.2) window.scrollBy(0, 20);
-                    if(joyData.y > 0.2) window.scrollBy(0, -20);
-                }
-            }
-
-            // VFX
-            cloudGroup.children.forEach(c => { c.position.x += c.userData.speed; if(c.position.x > 300) c.position.x = -300; });
-            const ffPos = fireflies.geometry.attributes.position.array;
-            for(let i=1; i<ffPos.length; i+=3) ffPos[i] += Math.sin(time*3 + ffPos[i-1])*0.05;
-            fireflies.geometry.attributes.position.needsUpdate = true;
-            if (rainSystem.visible) {
-                const rPos = rainSystem.geometry.attributes.position.array;
-                for(let i=1; i<rPos.length; i+=3) { rPos[i] -= 1.5; if(rPos[i] < 0) rPos[i] = 100; }
-                rainSystem.geometry.attributes.position.needsUpdate = true;
-                rainSystem.position.set(robot.position.x, 0, robot.position.z);
-            }
-            renderer.render(scene, camera);
-        }
-        animate();
-
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
+            container.appendChild(renderer.domElement);
+
+            // GEOMETRIA: Esfera Wireframe Branca
+            // Aumentei segmentos para ficar bem redonda
+            const geometry = new THREE.IcosahedronGeometry(2, 4); 
+            const material = new THREE.MeshBasicMaterial({ 
+                color: 0xffffff, 
+                wireframe: true, 
+                transparent: true, 
+                opacity: 0.06 // Transparência sutil
+            });
+            const sphere = new THREE.Mesh(geometry, material);
+            scene.add(sphere);
+
+            // Efeito de brilho azul interno (PointLight)
+            const light = new THREE.PointLight(0x00d2ff, 10, 100);
+            light.position.set(0, 0, 0);
+            scene.add(light);
+
+            camera.position.z = 8;
+
+            // ANIMAÇÃO SCROLL
+            const animate = () => {
+                requestAnimationFrame(animate);
+                
+                // Rotação eterna
+                sphere.rotation.y += 0.001;
+                sphere.rotation.x += 0.0005;
+
+                // Lógica de Scroll
+                const scrollY = window.scrollY;
+                const docHeight = document.body.scrollHeight - window.innerHeight;
+                const percent = Math.min(scrollY / docHeight, 1);
+
+                // Aumenta escala de 1x até 4x
+                const scale = 1 + (percent * 3);
+                sphere.scale.setScalar(scale);
+                
+                // Move um pouco para baixo
+                sphere.position.y = -(percent * 1.5);
+
+                renderer.render(scene, camera);
+            };
+            animate();
+
+            window.addEventListener('resize', () => {
+                camera.aspect = window.innerWidth / window.innerHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(window.innerWidth, window.innerHeight);
+            });
+        };
+
+        // --- 2. ROBOT 3D (No Carrossel) ---
+        let robotRenderer, robotCamera, robotScene, robotMixer;
+        let robotLoaded = false;
+
+        const initRobot = () => {
+            const container = document.getElementById('canvas-robot-container');
+            if(!container) return;
+            const w = container.clientWidth;
+            const h = container.clientHeight;
+
+            robotScene = new THREE.Scene();
+            // Iluminação
+            const hemiLight = new THREE.HemisphereLight(0xffffff, 0x444444, 3);
+            hemiLight.position.set(0, 20, 0);
+            robotScene.add(hemiLight);
+            const dirLight = new THREE.DirectionalLight(0xffffff, 3);
+            dirLight.position.set(0, 20, 10);
+            robotScene.add(dirLight);
+
+            robotCamera = new THREE.PerspectiveCamera(45, w/h, 0.25, 100);
+            robotCamera.position.set(-5, 3, 10);
+            robotCamera.lookAt(0, 2, 0);
+
+            robotRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            robotRenderer.setSize(w, h);
+            container.appendChild(robotRenderer.domElement);
+
+            // Carregamento do Modelo
+            const loader = new GLTFLoader();
+            const statusText = document.getElementById('robot-status');
+
+            // URL oficial do exemplo three.js (Geralmente permite CORS)
+            const modelUrl = 'https://threejs.org/examples/models/gltf/RobotExpressive/RobotExpressive.glb';
+
+            loader.load(modelUrl, 
+                (gltf) => {
+                    const model = gltf.scene;
+                    robotScene.add(model);
+                    
+                    robotMixer = new THREE.AnimationMixer(model);
+                    // Procura animação 'Wave' ou 'Idle'
+                    const clips = gltf.animations;
+                    // Tenta achar 'Wave', senão pega a primeira
+                    const clip = THREE.AnimationClip.findByName(clips, 'Wave') || clips[0];
+                    if(clip) {
+                        robotMixer.clipAction(clip).play();
+                    }
+
+                    if(statusText) statusText.style.display = 'none';
+                    robotLoaded = true;
+                },
+                undefined, // Progress
+                (error) => {
+                    console.error("Erro ao carregar robo GLB:", error);
+                    if(statusText) statusText.innerText = "MODO OFFLINE ATIVADO";
+                    createBackupRobot(); // Carrega o robô geométrico se falhar
+                }
+            );
+
+            const clock = new THREE.Clock();
+            const animateRobot = () => {
+                requestAnimationFrame(animateRobot);
+                if (robotMixer) robotMixer.update(clock.getDelta());
+                robotRenderer.render(robotScene, robotCamera);
+            };
+            animateRobot();
+        };
+
+        // Robô de Backup (Geométrico) caso a internet falhe ou CORS bloqueie
+        function createBackupRobot() {
+            const group = new THREE.Group();
+            
+            // Cabeça
+            const head = new THREE.Mesh(
+                new THREE.BoxGeometry(1.5, 1.2, 1.2),
+                new THREE.MeshStandardMaterial({ color: 0x333333 })
+            );
+            // Olho
+            const eye = new THREE.Mesh(
+                new THREE.BoxGeometry(1.6, 0.4, 0.5),
+                new THREE.MeshStandardMaterial({ color: 0x00d2ff, emissive: 0x00d2ff })
+            );
+            eye.position.set(0, 0.2, 0.3);
+            
+            group.add(head);
+            group.add(eye);
+            robotScene.add(group);
+
+            // Animação simples de flutuar
+            const animateBackup = () => {
+                requestAnimationFrame(animateBackup);
+                group.rotation.y += 0.01;
+                group.position.y = Math.sin(Date.now() * 0.002) * 0.5;
+            };
+            animateBackup();
+        }
+
+        const resizeRobot = () => {
+            const container = document.getElementById('canvas-robot-container');
+            if(container && robotCamera && robotRenderer) {
+                const w = container.clientWidth;
+                const h = container.clientHeight;
+                robotCamera.aspect = w / h;
+                robotCamera.updateProjectionMatrix();
+                robotRenderer.setSize(w, h);
+            }
+        };
+
+        // --- INICIALIZAÇÃO ---
+        initBg(); // Inicia fundo imediatamente
+
+        // Ouve a mudança de slide vinda do Script 1
+        window.addEventListener('slideChanged', (e) => {
+            if(e.detail.index === 3) {
+                setTimeout(() => {
+                    if(!robotRenderer) initRobot();
+                    else resizeRobot();
+                }, 50);
+            }
         });
+
+        // Resize Global
+        window.addEventListener('resize', () => {
+            // Se o robô já existe, redimensiona
+            if(robotRenderer) resizeRobot();
+        });
+
     </script>
 </body>
 </html>
